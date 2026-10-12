@@ -6,7 +6,7 @@ export default defineAppConfig({
     },
     button: {
       slots: {
-        base: 'rounded-md font-medium transition-colors duration-150'
+        base: 'cursor-pointer rounded-md font-medium transition-colors duration-150'
       },
       variants: {
         size: {

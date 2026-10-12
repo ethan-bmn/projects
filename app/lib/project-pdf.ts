@@ -43,6 +43,11 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
     font(9)
     doc.setTextColor(100)
     doc.text('Cahier des charges', margin, 15)
+    const name = doc.splitTextToSize(cleanText(detail.project.name), textWidth / 2) as string[]
+    doc.text(name[0] ?? '', width - margin, 15, { align: 'right' })
+    doc.setDrawColor(215)
+    doc.setLineWidth(0.2)
+    doc.line(margin, 20, width - margin, 20)
     y = 28
   }
 
@@ -50,16 +55,16 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
     if (y + space > bottom) nextPage()
   }
 
-  function write(value: string, size = 11, bold = false, color = 45) {
+  function write(value: string, size = 11, bold = false, color = 45, inset = 0) {
     font(size, bold)
-    const lines = doc.splitTextToSize(cleanText(value), textWidth) as string[]
+    const lines = doc.splitTextToSize(cleanText(value), textWidth - inset * 2) as string[]
     const lineHeight = size * 0.352778 * 1.45
     for (const line of lines) {
       ensureSpace(lineHeight)
       // A new page changes the header font, so restore the current text style.
       font(size, bold)
       doc.setTextColor(color)
-      doc.text(line, margin, y)
+      doc.text(line, margin + inset, y)
       y += lineHeight
     }
   }
@@ -72,16 +77,25 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
   write(detail.client.kind === 'organization' ? 'Entreprise' : 'Particulier', 10, false, 100)
   const updated = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'Europe/Paris' }).format(new Date(detail.project.updatedAt))
   write(`Mis à jour le ${updated}`, 10, false, 100)
+  y += 2
+  doc.setDrawColor(63)
+  doc.setLineWidth(0.5)
+  doc.line(margin, y, width - margin, y)
+  y += 4
 
   for (const [index, section] of projectSections.entries()) {
-    y += 7
-    font(12, true)
+    y += 4
+    font(11.5, true)
     const heading = `${index + 1}. ${section.label}`
-    const headingLines = doc.splitTextToSize(heading, textWidth) as string[]
-    ensureSpace(headingLines.length * 12 * 0.352778 * 1.45 + 2 + 11 * 0.352778 * 1.45)
-    write(heading, 12, true, 24)
+    const headingLines = doc.splitTextToSize(heading, textWidth - 6) as string[]
+    const headingHeight = headingLines.length * 11.5 * 0.352778 * 1.45
+    ensureSpace(headingHeight + 2 + 11 * 0.352778 * 1.45)
+    doc.setFillColor(244, 244, 245)
+    doc.rect(margin, y - 4.5, textWidth, headingHeight + 1.8, 'F')
+    write(heading, 11.5, true, 24, 3)
     y += 2
-    write(detail.project.specification[section.key] || 'Non renseigné (optionnel).')
+    const content = detail.project.specification[section.key]
+    write(content || 'Non renseigné (optionnel).', content ? 11 : 10, false, content ? 45 : 110)
   }
 
   const pages = doc.getNumberOfPages()
@@ -92,6 +106,7 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
     doc.line(margin, height - 20, width - margin, height - 20)
     font(9)
     doc.setTextColor(100)
+    doc.text('Cahier des charges', margin, height - 12)
     doc.text(`Page ${page} / ${pages}`, width - margin, height - 12, { align: 'right' })
   }
   return doc
