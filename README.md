@@ -197,8 +197,9 @@ charges. jsPDF loads on demand and creates an A4 document in the browser with th
 customer, project name, update date, all specification sections, and page numbers.
 The `#6867f6` header displays the white document title and Ethan BAUMANN EI's business
 details at the top-right. Section bands and compact continuation headers aid reading.
-Long text wraps and continues across pages; empty optional sections are marked
-as unfilled. The bundled Public Sans fonts preserve French accents and ligatures
+Long text wraps and continues across pages; empty sections are omitted and the
+remaining sections are numbered consecutively. The bundled Public Sans fonts
+preserve French accents and ligatures
 (see `public/fonts/pdf/OFL.txt`). PDF generation does not upload project text to
 an external service and exports the saved specification.
 

@@ -93,15 +93,18 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
   doc.line(margin, y, width - margin, y)
   y += 4
 
-  for (const [index, section] of projectSections.entries()) {
+  const filledSections = projectSections.flatMap((section) => {
+    const content = cleanText(detail.project.specification[section.key] ?? '')
+    return content.trim() ? [{ ...section, content }] : []
+  })
+  for (const [index, section] of filledSections.entries()) {
     y += 4
     font(11.5, true)
     const heading = `${index + 1}. ${section.label}`
     const headingLines = doc.splitTextToSize(heading, textWidth - 6) as string[]
     const headingHeight = headingLines.length * 11.5 * 0.352778 * 1.45
-    const content = detail.project.specification[section.key]
-    const body = content || 'Non renseigné (optionnel).'
-    const bodySize = content ? 11 : 10
+    const body = section.content
+    const bodySize = 11
     font(bodySize)
     const bodyLines = doc.splitTextToSize(cleanText(body), textWidth) as string[]
     const bodyHeight = bodyLines.length * bodySize * 0.352778 * 1.45
@@ -113,7 +116,7 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
     doc.rect(margin, y - 4.5, 0.8, headingHeight + 1.8, 'F')
     write(heading, 11.5, true, 24, 3)
     y += 2
-    write(body, bodySize, false, content ? 45 : 110)
+    write(body, bodySize)
   }
 
   const pages = doc.getNumberOfPages()

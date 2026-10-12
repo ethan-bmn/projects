@@ -18,7 +18,7 @@ function detail(): ProjectDetail {
 }
 
 describe('project PDF export', () => {
-  it('generates a real PDF with every section and embedded French glyphs', () => {
+  it('generates a real PDF with every filled section and embedded French glyphs', () => {
     const doc = new jsPDF()
     const text = vi.spyOn(doc, 'text')
     const input = detail()
@@ -33,15 +33,32 @@ describe('project PDF export', () => {
     }
     expect(written).toContain('Éloïse Cœur')
     expect(written).toContain('Création d’une œuvre')
-    for (const heading of ['Contexte métier', 'Contexte technique', 'Objectifs', 'Enjeux', 'Contraintes métiers', 'Contraintes techniques', 'Architecture logicielle', 'Architecture DB', 'Outils et frameworks', 'Planning']) {
+    for (const heading of ['Contexte métier', 'Contexte technique', 'Objectifs', 'Enjeux', 'Contraintes métiers', 'Contraintes techniques', 'Architecture logicielle', 'Outils et frameworks', 'Planning']) {
       expect(written).toContain(heading)
     }
-    expect(written).toContain('Non renseigné (optionnel).')
+    expect(written).not.toContain('Non renseigné')
+    expect(written).not.toContain('Architecture DB')
     for (const heading of ['Périmètre du projet', 'Parties prenantes', 'Besoins fonctionnels', 'Besoins non fonctionnels', 'Gestion des données', 'Livrables attendus', 'Critères de recette', 'Exploitation et maintenance', 'Nom de domaine(s) ciblé(s)']) {
       expect(written).toContain(heading)
     }
     expect(written).toContain('boutique.example.test')
     expect(input.project.specification.databaseArchitecture).toBeNull()
+  })
+
+  it.each([undefined, null, '', ' \n\t ', '\u0000'])('omits empty sections and renumbers headings without changing saved data: %j', (content) => {
+    const doc = new jsPDF()
+    const text = vi.spyOn(doc, 'text')
+    const input = detail()
+    Object.assign(input.project.specification, { businessContext: content })
+    const original = structuredClone(input)
+    renderProjectPdf(doc, input, fonts)
+    const written = text.mock.calls.map(call => String(call[0]))
+    expect(written).not.toContain('1. Contexte métier')
+    expect(written).toContain('1. Contexte technique')
+    expect(written).toContain('2. Objectifs')
+    const headings = written.filter(line => /^\d+\. /.test(line))
+    expect(headings.map(line => Number.parseInt(line))).toEqual(Array.from({ length: headings.length }, (_, index) => index + 1))
+    expect(input).toEqual(original)
   })
 
   it('paginates long specifications without dropping text or drawing beyond page margins', () => {
