@@ -182,7 +182,12 @@ async function synchronize() {
                 class="border-b border-default last:border-0"
               >
                 <td class="px-4 py-3 font-medium text-highlighted">
-                  {{ client.name || 'Sans nom' }}
+                  <NuxtLink
+                    :to="`/clients/${client.id}`"
+                    class="rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+                  >
+                    {{ client.name || 'Sans nom' }}
+                  </NuxtLink>
                   <p
                     v-if="client.commercialName && client.commercialName !== client.name"
                     class="mt-1 text-sm font-normal text-muted"

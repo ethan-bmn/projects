@@ -5,6 +5,7 @@ import { fetch, setup } from '@nuxt/test-utils/e2e'
 import { afterAll, describe, expect, it } from 'vitest'
 import { migrateDatabase, ownerSeedCredentials, seedOwner } from '../../database/setup'
 import { createTestDatabase } from '../helpers/database'
+import { projectInput } from '../helpers/projects'
 
 const email = 'owner@example.test'
 const password = 'test-owner-password-only'
@@ -202,6 +203,57 @@ describe('owner authentication', () => {
       expect((await fetch('/api/clients?kind=individual&kind=organization', { headers: { cookie } })).status).toBe(400)
     } finally {
       await database.sql`DELETE FROM clients WHERE abby_id LIKE 'filter-%'`
+    }
+  })
+
+  it('creates and edits customer projects through protected, customer-scoped routes', async () => {
+    const cookie = sessionCookie(await login())
+    const customers = await database.sql`
+      INSERT INTO clients (kind, abby_id, name)
+      VALUES ('organization', 'project-http-business', 'HTTP company'), ('individual', 'project-http-person', 'HTTP person')
+      RETURNING id, kind
+    `
+    const clientId = customers.find(item => item.kind === 'organization')!.id
+    const otherId = customers.find(item => item.kind === 'individual')!.id
+    const url = `/api/clients/${clientId}/projects`
+    const headers = { cookie, 'Content-Type': 'application/json' }
+    try {
+      expect((await fetch(url, { method: 'POST', body: JSON.stringify(projectInput()), headers: { 'Content-Type': 'application/json' } })).status).toBe(401)
+      expect((await fetch(url, { method: 'POST', headers: { ...headers, Origin: 'https://other.example.test' }, body: JSON.stringify(projectInput()) })).status).toBe(403)
+      expect((await fetch(url, { method: 'POST', headers, body: JSON.stringify({ name: 'Missing specification' }) })).status).toBe(400)
+      expect((await fetch(url, { method: 'POST', headers: { cookie, 'Content-Type': 'text/plain' }, body: '{}' })).status).toBe(415)
+      expect((await fetch('/api/clients/not-a-uuid', { headers: { cookie } })).status).toBe(400)
+
+      const created = await fetch(url, { method: 'POST', headers, body: JSON.stringify(projectInput()) })
+      expect(created.status).toBe(201)
+      expect(created.headers.get('cache-control')).toBe('no-store')
+      const first = await created.json()
+      expect(first.clientId).toBe(clientId)
+      expect(first.specification.databaseArchitecture).toBeNull()
+      expect((await fetch(url, { method: 'POST', headers, body: JSON.stringify(projectInput('Deuxième projet')) })).status).toBe(201)
+      const customer = await (await fetch(`/api/clients/${clientId}`, { headers: { cookie } })).json()
+      expect(customer.projects).toHaveLength(2)
+      expect((await fetch(`${url}/${first.id}`, { headers: { cookie } })).status).toBe(200)
+      expect((await fetch(`${url}/${first.id}`)).status).toBe(401)
+      expect((await fetch(`/api/clients/${otherId}/projects/${first.id}`, { headers: { cookie } })).status).toBe(404)
+      expect((await fetch(`/api/clients/${otherId}/projects/${first.id}`, { method: 'PUT', headers, body: JSON.stringify(projectInput('Wrong customer')) })).status).toBe(404)
+
+      const input = projectInput('Projet modifié')
+      input.specification.schedule = 'Nouveau planning\nSemaine 5 : livraison'
+      input.specification.databaseArchitecture = 'PostgreSQL : modèle relationnel.'
+      const updated = await fetch(`${url}/${first.id}`, { method: 'PUT', headers, body: JSON.stringify(input) })
+      expect(updated.status).toBe(200)
+      expect((await updated.json()).specification).toEqual(input.specification)
+      const persisted = await (await fetch(`${url}/${first.id}`, { headers: { cookie } })).json()
+      expect(persisted.project.name).toBe(input.name)
+      const page = await fetch(`/clients/${clientId}/projects/${first.id}`, { headers: { cookie } })
+      expect(page.status).toBe(200)
+      expect(await page.text()).toContain('Cahier des charges')
+      const anonymousPage = await fetch(`/clients/${clientId}/projects/new`, { redirect: 'manual' })
+      expect(anonymousPage.headers.get('location')).toBe('/auth')
+    } finally {
+      await database.sql`DELETE FROM projects WHERE client_id = ${clientId} OR client_id = ${otherId}`
+      await database.sql`DELETE FROM clients WHERE id = ${clientId} OR id = ${otherId}`
     }
   })
 

@@ -12,7 +12,7 @@ const config = { apiKey: 'test-only-key', baseUrl: 'https://api.app-abby.com' }
 const item: AbbyClient = { id: 'abby-1', kind: 'organization', name: 'Dupont SARL', emails: ['info@example.test'], commercialName: null }
 
 beforeEach(async () => {
-  await database.sql`TRUNCATE clients`
+  await database.sql`TRUNCATE projects, clients`
   await database.sql`UPDATE abby_sync_state SET last_attempt_at = NULL, last_success_at = NULL, last_error = NULL, client_count = 0`
 })
 

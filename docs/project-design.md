@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Build a private workspace for one owner with exactly one login account. Import clients from the owner's Abby account and attach multiple projects to each client, each with its own specifications. Public registration, invitations, and additional accounts are outside the scope. PostgreSQL-backed owner login, global route protection, and daily/manual Abby client synchronization are implemented. Project and specification management remain planned.
+Build a private workspace for one owner with exactly one login account. Import clients from the owner's Abby account and attach multiple projects to each client, each with its own specifications. Public registration, invitations, and additional accounts are outside the scope. Owner authentication, daily/manual Abby synchronization, client segmentation, and project creation/editing are implemented.
 
 ## Database Setup
 
@@ -16,21 +16,20 @@ Build a private workspace for one owner with exactly one login account. Import c
 4. Create a project and edit its specifications independently of other projects.
 5. Refresh client information without overwriting project data.
 
-## Proposed Data Model
+## Data Model
 
-The owner, client, and sync tables are implemented. Projects and specifications below remain a proposed design.
+The owner, client, synchronization, and project tables are implemented. A project's specification is stored as structured JSONB on its project row.
 
 | Entity | Main fields | Relationships |
 | --- | --- | --- |
 | Owner account | Singleton `id = 1`, email, password hash, timestamps | The sole owner login |
 | Abby sync state | Singleton `id`, last successful sync | Tracks the owner's Abby import |
 | Client | UUID `id`, unique `(kind, abby_id)`, business/individual type, name, commercial name, emails, active flag and sync timestamps | Future projects reference the stable local ID |
-| Project | `id`, `client_id`, title, status, timestamps | Belongs to exactly one client |
-| Specification | `id`, `project_id`, title, body, timestamps | Belongs to exactly one project |
+| Project | UUID `id`, `client_id`, name, JSONB specification, timestamps | Belongs to exactly one client |
 
-Specification fields are a proposed starting point. Confirm whether specifications should be free text, structured requirements, or a mix before building the editor.
+The specification contains multiline text for contexte métier, contexte technique, objectifs, enjeux, contraintes métiers, contraintes techniques, architecture logicielle, architecture DB, outils et frameworks, and planning. Architecture DB is optional (`null`); all other sections are required. Names allow 200 characters and each section allows 20,000 characters. The API validates the shape and text values before writing.
 
-Use local IDs for project relationships and a unique constraint on `clients(kind, abby_id)` so repeated imports update existing clients and IDs from different Abby entity types stay distinct. Enforce foreign keys from projects to clients and specifications to projects, and index these references. All clients and projects belong to the same private workspace; per-record account ownership fields are unnecessary. Archive clients rather than removing their projects during synchronization.
+Use local IDs for project relationships and a unique constraint on `clients(kind, abby_id)` so repeated imports update existing clients and IDs from different Abby entity types stay distinct. `projects.client_id` references `clients.id` with `ON DELETE RESTRICT`; the customer/project lookup is indexed. All clients and projects belong to the same private workspace; per-record account ownership fields are unnecessary. Archive clients rather than removing their projects during synchronization.
 
 The `user` table's primary key is constrained to `1`, permitting at most one account. Use the quoted SQL identifier `"user"` in queries. Seed it from `NUXT_OWNER_EMAIL` and either `NUXT_OWNER_PASSWORD_HASH` or `NUXT_OWNER_PASSWORD` in `.env`. Plain passwords are hashed before storage. Login reads the database and does not fall back to environment credentials. Reseeding updates the same account and preserves unchanged hashes. There is no account creation endpoint or default login credential.
 
@@ -56,4 +55,6 @@ The server checks at startup and hourly, importing when the last success is at l
 
 ## Implementation and Verification
 
-Next implement projects and specification CRUD. `bun run test` runs Vitest unit, PostgreSQL integration, and authenticated HTTP tests using temporary databases and an isolated Nuxt server. Tests cover authentication, pagination, safe Abby errors, repeated imports, inactive clients, partial fetch/write failures, the daily schedule, and concurrent imports. No tests call the real Abby API. Continue running `bun run lint`, `bun run typecheck`, and `bun run build`.
+Customer pages at `/clients/:clientId` list projects and link to the creation form. `/clients/:clientId/projects/:projectId` displays the specification and supports editing. The editor warns before discarding unsaved changes. Protected APIs provide customer/project reads, project creation (`POST`), and full specification updates (`PUT`). Every project lookup/update is scoped by both local project and customer IDs; inactive customers retain project access.
+
+`bun run test` runs Vitest unit, PostgreSQL integration, and authenticated HTTP tests using temporary databases and an isolated Nuxt server. Tests cover authentication, synchronization, segmentation, multiple projects per customer, optional DB architecture, required sections, foreign keys, scoped updates, and preservation through Abby refreshes. No tests call the real Abby API. Continue running `bun run lint`, `bun run typecheck`, and `bun run build`.

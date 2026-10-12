@@ -1,8 +1,8 @@
 # Abby Projects
 
-This project will provide a private workspace with one secure account for its owner, importing clients from Abby and managing multiple projects per client, with specifications stored for each project. Public registration and additional accounts are outside the scope.
+This project provides a private workspace with one secure account for its owner, importing clients from Abby and managing multiple projects per client, with specifications stored for each project. Public registration and additional accounts are outside the scope.
 
-See [the project design](docs/project-design.md) for the data model, access controls, and synchronization behavior. PostgreSQL runs locally through Docker Compose. Owner login uses a database account seeded from `.env`. Abby clients are stored locally and synchronized daily; project/specification management is planned.
+See [the project design](docs/project-design.md) for the data model, access controls, and synchronization behavior. PostgreSQL runs locally through Docker Compose. Owner login uses a database account seeded from `.env`. Abby clients are synchronized daily; their projects and specifications remain local.
 
 ## Starter Template
 
@@ -168,6 +168,25 @@ the client type and compound identity, and makes the expanded import due. When a
 individual joins an organization, their old individual row becomes inactive; it is
 reactivated with the same local ID if they become standalone again. Local project
 relations are preserved rather than reassigned automatically.
+
+## Projects and specifications
+
+Run `bun run db:migrate` after updating the repository. Select a customer's name
+in the client list, then choose **Nouveau projet**. Each customer can have multiple
+projects; select a project to read its specification or click **Modifier** to edit it.
+
+Every project has a name (maximum 200 characters) and these multiline sections:
+contexte métier, contexte technique, objectifs, enjeux, contraintes métiers,
+contraintes techniques, architecture logicielle, architecture DB, outils et frameworks,
+and planning. All sections except architecture DB are required; each allows up to
+20,000 characters. Planning is free text for stages, deliverables, and dates.
+Optional database architecture is stored as `null` when empty.
+
+Projects use a foreign key to the customer's stable local UUID. Abby refreshes never
+overwrite their names or specifications. Inactive customers' projects remain accessible
+at their existing URLs. Customers with projects cannot be deleted from the database.
+The editor warns before discarding unsaved changes. Project API routes require the
+owner's session, reject cross-origin writes, and scope reads/updates to the customer.
 
 ## Production
 
