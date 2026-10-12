@@ -2,30 +2,33 @@
 
 ## Project Structure & Module Organization
 
-This repository is an initial Git workspace with no application code, tests, assets, or dependency manifests. Keep new project files organized by purpose. For a single application, prefer `src/` for source code, `tests/` for tests, and `assets/` for static resources. If this workspace becomes a collection of projects, give each project its own directory and document its layout in its README.
+This is a Nuxt 4 starter using Vue, TypeScript, Nuxt UI, and Tailwind CSS. Application code lives in `app/`: `pages/` defines routes, `components/` holds reusable Vue components, and `assets/css/main.css` is the stylesheet entry point. `app.vue` provides the application shell; `app.config.ts` configures UI colors. Place directly served static files in `public/`. Nuxt modules and route rules live in `nuxt.config.ts`; the home route is prerendered. Generated `.nuxt/` and `.output/` directories are ignored and should not be edited.
 
 ## Build, Test, and Development Commands
 
-No build, test, or local development commands are configured yet. When adding a project, document the exact installation, development, build, and test commands in its README. Use the chosen toolchain's standard commands and commit the relevant configuration and dependency lockfiles.
+Use Bun 1.3.14 and Node.js 24.11.0 or newer in the 24.x series.
 
-Useful repository checks:
+- `bun install`: install dependencies and run `nuxt prepare` to generate types and ESLint configuration.
+- `bun run dev`: start development at `http://localhost:3000`.
+- `bun run build`: create the production build in `.output/`.
+- `bun run preview`: preview the production build locally.
+- `bun run lint`: run ESLint, including Tailwind correctness checks.
+- `bun run typecheck`: check Nuxt and Vue TypeScript types.
 
-- `git status --short`: review changed and untracked files.
-- `git diff --check`: catch whitespace errors before committing.
-- `git diff --stat`: check the scope of pending changes.
+Commit `bun.lock` when changing dependencies. CI uses `bun install --frozen-lockfile`, then runs lint and typecheck.
 
 ## Coding Style & Naming Conventions
 
-No language, formatter, or linter has been selected. Follow the conventions of the language introduced, and add shared formatting and linting configuration early. Use descriptive names, consistent indentation, and small modules with clear responsibilities. Avoid mixing unrelated projects or generated output in the repository root.
+Follow `.editorconfig`: two-space indentation, UTF-8, LF line endings, and a final newline. Match existing JavaScript and TypeScript style: single quotes, no semicolons, no trailing commas, and same-line opening braces. ESLint uses Nuxt's stylistic configuration and `eslint-plugin-better-tailwindcss`. Name reusable components in PascalCase, such as `TemplateMenu.vue`; use Nuxt route filenames such as `pages/index.vue`. Prefer Nuxt UI components and existing theme settings for interface changes.
 
 ## Testing Guidelines
 
-No testing framework or coverage threshold exists. Add automated tests alongside new behavior, including meaningful edge cases and regression tests for fixes. Follow the selected framework's test naming conventions and document how to run the suite. Run applicable tests before opening a pull request.
+No automated test framework, test script, or coverage threshold is configured. Run lint, typecheck, and a production build before submitting changes. For interface changes, verify affected routes, responsive layouts, and light/dark appearance in the browser. Document manual verification in the pull request.
 
 ## Commit & Pull Request Guidelines
 
-There is no commit history establishing a message convention. Use concise, imperative subjects, such as `Add initial project structure`. Keep commits focused. Pull requests should explain the change, include validation results, link relevant issues, and provide screenshots for visible interface changes.
+History contains only `Initial commit`, so no recurring commit convention is established. Use concise, imperative subjects, such as `Add navigation menu`. Keep changes focused. Pull requests should describe the behavior changed, link relevant issues, list validation results, and include screenshots for visual changes.
 
 ## Security & Configuration
 
-Keep credentials and local configuration out of Git. Add appropriate `.gitignore` rules when introducing tooling, and provide example configuration with placeholder values where needed.
+Keep secrets in ignored `.env` files; provide placeholder settings in `.env.example` when needed. Dependency lifecycle scripts are restricted through `trustedDependencies` in `package.json`; review changes to that list carefully.
