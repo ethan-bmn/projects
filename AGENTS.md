@@ -27,7 +27,9 @@ No automated test framework, test script, or coverage threshold is configured. R
 
 ## Commit & Pull Request Guidelines
 
-History contains only `Initial commit`, so no recurring commit convention is established. Use concise, imperative subjects, such as `Add navigation menu`. Keep changes focused. Pull requests should describe the behavior changed, link relevant issues, list validation results, and include screenshots for visual changes.
+Use Conventional Commits with concise, imperative subjects, such as `feat: add client filters` or `fix: preserve clients when sync fails`. Commit each completed feature or bug fix after the relevant validation passes; do not accumulate unrelated work in one commit. Include only changes belonging to that task and preserve unrelated staged or working-tree changes.
+
+Pull requests should describe the behavior changed, link relevant issues, list validation results, and include screenshots for visual changes.
 
 ## Security & Configuration
 
