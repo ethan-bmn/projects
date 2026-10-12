@@ -28,6 +28,9 @@ describe('project PDF export', () => {
     expect(output).toMatch(/^%PDF-/)
     expect(output).toContain('/FontFile2')
     expect(output).toContain('/ToUnicode')
+    for (const businessDetail of ['Ethan BAUMANN EI', 'SIREN : 130584659', '+33667739428', 'contact@ethanbaumann.fr']) {
+      expect(written).toContain(businessDetail)
+    }
     expect(written).toContain('Éloïse Cœur')
     expect(written).toContain('Création d’une œuvre')
     for (const heading of ['Contexte métier', 'Contexte technique', 'Objectifs', 'Enjeux', 'Contraintes métiers', 'Contraintes techniques', 'Architecture logicielle', 'Architecture DB', 'Outils et frameworks', 'Planning']) {

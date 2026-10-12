@@ -24,7 +24,7 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
   doc.addFont('PublicSans-Regular.ttf', 'PublicSans', 'normal')
   doc.addFont('PublicSans-Bold.ttf', 'PublicSans', 'bold')
   doc.setLanguage('fr-FR')
-  doc.setProperties({ title: `Cahier des charges - ${cleanText(detail.project.name)}`, subject: `Client : ${cleanText(detail.client.name)}`, creator: 'Abby Projects' })
+  doc.setProperties({ title: `Cahier des charges - ${cleanText(detail.project.name)}`, subject: `Client : ${cleanText(detail.client.name)}`, author: 'Ethan BAUMANN EI', creator: 'Abby Projects' })
 
   const margin = 20
   const width = doc.internal.pageSize.getWidth()
@@ -40,14 +40,13 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
 
   function nextPage() {
     doc.addPage()
+    doc.setFillColor(29, 78, 216)
+    doc.rect(margin - 4, 8, textWidth + 8, 12, 'F')
     font(9)
-    doc.setTextColor(100)
+    doc.setTextColor(255)
     doc.text('Cahier des charges', margin, 15)
     const name = doc.splitTextToSize(cleanText(detail.project.name), textWidth / 2) as string[]
     doc.text(name[0] ?? '', width - margin, 15, { align: 'right' })
-    doc.setDrawColor(215)
-    doc.setLineWidth(0.2)
-    doc.line(margin, 20, width - margin, 20)
     y = 28
   }
 
@@ -69,8 +68,15 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
     }
   }
 
-  write('Cahier des charges', 22, true, 24)
-  y += 3
+  doc.setFillColor(29, 78, 216)
+  doc.rect(margin - 4, 15, textWidth + 8, 20, 'F')
+  y = 28
+  write('Cahier des charges', 22, true, 255)
+  y = 42
+  write('Ethan BAUMANN EI', 10, true, 24)
+  write('SIREN : 130584659', 9, false, 100)
+  write('+33667739428 | contact@ethanbaumann.fr', 9, false, 100)
+  y += 2
   write(detail.project.name, 16, true, 24)
   y += 4
   write(`Client : ${detail.client.name}`)
