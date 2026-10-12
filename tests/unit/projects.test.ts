@@ -12,9 +12,18 @@ describe('project input validation', () => {
     expect(input.name).toBe('  Refonte du site  ')
   })
 
-  it.each([undefined, null, '', '   '])('allows missing or empty optional DB architecture: %s', (value) => {
-    const input = projectInput()
-    expect(validateProjectInput({ ...input, specification: { ...input.specification, databaseArchitecture: value } }).specification.databaseArchitecture).toBeNull()
+  describe.each(['businessContext', 'technicalContext', 'technicalConstraints', 'databaseArchitecture', 'schedule'])('optional section %s', (section) => {
+    it.each([undefined, null, '', '   '])('accepts missing or blank content: %s', (value) => {
+      const input = projectInput()
+      const result = validateProjectInput({ ...input, specification: { ...input.specification, [section]: value } })
+      expect(result.specification[section as keyof typeof result.specification]).toBeNull()
+      expect(result.specification.objectives).toBe(input.specification.objectives)
+    })
+    it('preserves supplied text without replacing the other optional sections', () => {
+      const input = projectInput()
+      const specification = { ...input.specification, [section]: 'Première ligne\nDeuxième ligne' }
+      expect(validateProjectInput({ ...input, specification }).specification).toEqual(specification)
+    })
   })
 
   it('preserves supplied DB architecture', () => {
@@ -23,7 +32,7 @@ describe('project input validation', () => {
     expect(validateProjectInput(input)).toEqual(input)
   })
 
-  it.each(['businessContext', 'technicalContext', 'objectives', 'stakes', 'businessConstraints', 'technicalConstraints', 'softwareArchitecture', 'toolsAndFrameworks', 'schedule'])('requires section %s', (section) => {
+  it.each(['objectives', 'stakes', 'businessConstraints', 'softwareArchitecture', 'toolsAndFrameworks'])('requires section %s', (section) => {
     const input = projectInput()
     expect(() => validateProjectInput({ ...input, specification: { ...input.specification, [section]: ' ' } })).toThrow('champ')
   })

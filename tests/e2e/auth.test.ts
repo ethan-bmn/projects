@@ -224,12 +224,18 @@ describe('owner authentication', () => {
       expect((await fetch(url, { method: 'POST', headers: { cookie, 'Content-Type': 'text/plain' }, body: '{}' })).status).toBe(415)
       expect((await fetch('/api/clients/not-a-uuid', { headers: { cookie } })).status).toBe(400)
 
-      const created = await fetch(url, { method: 'POST', headers, body: JSON.stringify(projectInput()) })
+      const withoutOptionalSections = projectInput()
+      withoutOptionalSections.specification.businessContext = null
+      withoutOptionalSections.specification.technicalContext = null
+      withoutOptionalSections.specification.technicalConstraints = null
+      withoutOptionalSections.specification.schedule = null
+      const created = await fetch(url, { method: 'POST', headers, body: JSON.stringify(withoutOptionalSections) })
       expect(created.status).toBe(201)
       expect(created.headers.get('cache-control')).toBe('no-store')
       const first = await created.json()
       expect(first.clientId).toBe(clientId)
       expect(first.specification.databaseArchitecture).toBeNull()
+      expect(first.specification).toEqual(withoutOptionalSections.specification)
       expect((await fetch(url, { method: 'POST', headers, body: JSON.stringify(projectInput('Deuxième projet')) })).status).toBe(201)
       const customer = await (await fetch(`/api/clients/${clientId}`, { headers: { cookie } })).json()
       expect(customer.projects).toHaveLength(2)

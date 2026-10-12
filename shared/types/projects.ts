@@ -1,22 +1,22 @@
 import type { Client } from './clients'
 
 export const projectSections = [
-  { key: 'businessContext', label: 'Contexte métier', optional: false },
-  { key: 'technicalContext', label: 'Contexte technique', optional: false },
+  { key: 'businessContext', label: 'Contexte métier', optional: true },
+  { key: 'technicalContext', label: 'Contexte technique', optional: true },
   { key: 'objectives', label: 'Objectifs', optional: false },
   { key: 'stakes', label: 'Enjeux', optional: false },
   { key: 'businessConstraints', label: 'Contraintes métiers', optional: false },
-  { key: 'technicalConstraints', label: 'Contraintes techniques', optional: false },
+  { key: 'technicalConstraints', label: 'Contraintes techniques', optional: true },
   { key: 'softwareArchitecture', label: 'Architecture logicielle', optional: false },
   { key: 'databaseArchitecture', label: 'Architecture DB', optional: true },
   { key: 'toolsAndFrameworks', label: 'Outils et frameworks', optional: false },
-  { key: 'schedule', label: 'Planning', optional: false }
+  { key: 'schedule', label: 'Planning', optional: true }
 ] as const
 
 export type ProjectSection = typeof projectSections[number]['key']
-export type ProjectSpecification = Record<Exclude<ProjectSection, 'databaseArchitecture'>, string> & {
-  databaseArchitecture: string | null
-}
+type OptionalProjectSection = Extract<typeof projectSections[number], { optional: true }>['key']
+export type ProjectSpecification = Record<Exclude<ProjectSection, OptionalProjectSection>, string>
+  & Record<OptionalProjectSection, string | null>
 
 export interface ProjectInput {
   name: string

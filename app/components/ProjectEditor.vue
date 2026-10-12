@@ -34,10 +34,10 @@ function submit() {
   if (props.pending) return
   emit('submit', {
     name: form.name,
-    specification: {
-      ...form.specification,
-      databaseArchitecture: form.specification.databaseArchitecture.trim() ? form.specification.databaseArchitecture : null
-    } as ProjectSpecification
+    specification: Object.fromEntries(projectSections.map(section => [
+      section.key,
+      section.optional && !form.specification[section.key].trim() ? null : form.specification[section.key]
+    ])) as ProjectSpecification
   })
 }
 

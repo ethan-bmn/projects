@@ -29,7 +29,7 @@ export function validateProjectInput(value: unknown): ProjectInput {
     if (typeof content !== 'string' || (!section.optional && !content.trim()) || content.length > 20000) {
       throw new ProjectError(`Le champ « ${section.label} » doit contenir ${section.optional ? 'au maximum' : 'entre 1 et'} 20 000 caractères.`)
     }
-    if (section.optional) specification.databaseArchitecture = content.trim() ? content : null
+    if (section.optional) specification[section.key] = content.trim() ? content : null
     else specification[section.key] = content
   }
   return { name: input.name.trim(), specification }

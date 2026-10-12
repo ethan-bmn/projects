@@ -178,9 +178,10 @@ projects; select a project to read its specification or click **Modifier** to ed
 Every project has a name (maximum 200 characters) and these multiline sections:
 contexte métier, contexte technique, objectifs, enjeux, contraintes métiers,
 contraintes techniques, architecture logicielle, architecture DB, outils et frameworks,
-and planning. All sections except architecture DB are required; each allows up to
+and planning. Business context, technical context, technical constraints, database
+architecture, and planning are optional; the other sections are required. Each allows up to
 20,000 characters. Planning is free text for stages, deliverables, and dates.
-Optional database architecture is stored as `null` when empty.
+Optional sections are stored as `null` when empty; existing content is preserved.
 
 Projects use a foreign key to the customer's stable local UUID. Abby refreshes never
 overwrite their names or specifications. Inactive customers' projects remain accessible
