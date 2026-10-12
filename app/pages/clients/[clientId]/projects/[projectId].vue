@@ -12,7 +12,24 @@ useSeoMeta({ title: () => `${data.value?.project.name} | Abby Projects` })
 const editing = ref(false)
 const pending = ref(false)
 const saveError = ref('')
+const exporting = ref(false)
+const exportError = ref('')
+const config = useRuntimeConfig()
 const editor = useTemplateRef<{ markSaved: () => void }>('editor')
+
+async function exportPdf() {
+  if (exporting.value || !data.value) return
+  exporting.value = true
+  exportError.value = ''
+  try {
+    const { downloadProjectPdf } = await import('~/lib/project-pdf')
+    await downloadProjectPdf(data.value, config.app.baseURL)
+  } catch {
+    exportError.value = 'Impossible de générer le PDF. Réessayez.'
+  } finally {
+    exporting.value = false
+  }
+}
 
 async function save(input: ProjectInput) {
   if (pending.value) return
@@ -44,15 +61,32 @@ async function save(input: ProjectInput) {
       <h1 class="text-2xl font-semibold tracking-tight text-highlighted">
         {{ editing ? 'Modifier le projet' : data.project.name }}
       </h1>
-      <UButton
+      <div
         v-if="!editing"
-        label="Modifier"
-        icon="i-lucide-pencil"
-        color="neutral"
-        variant="outline"
-        @click="editing = true; saveError = ''"
-      />
+        class="flex flex-wrap gap-2"
+      >
+        <UButton
+          label="Exporter en PDF"
+          icon="i-lucide-download"
+          :loading="exporting"
+          @click="exportPdf"
+        />
+        <UButton
+          label="Modifier"
+          icon="i-lucide-pencil"
+          color="neutral"
+          variant="outline"
+          @click="editing = true; saveError = ''"
+        />
+      </div>
     </div>
+    <p
+      v-if="exportError"
+      role="alert"
+      class="mt-4 text-sm text-error"
+    >
+      {{ exportError }}
+    </p>
     <p
       v-if="!data.client.active"
       class="mt-4 text-sm text-muted"

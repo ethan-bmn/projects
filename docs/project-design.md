@@ -57,4 +57,11 @@ The server checks at startup and hourly, importing when the last success is at l
 
 Customer pages at `/clients/:clientId` list projects and link to the creation form. `/clients/:clientId/projects/:projectId` displays the specification and supports editing. The editor warns before discarding unsaved changes. Protected APIs provide customer/project reads, project creation (`POST`), and full specification updates (`PUT`). Every project lookup/update is scoped by both local project and customer IDs; inactive customers retain project access.
 
+The project page lazy-loads jsPDF for a browser-side **Exporter en PDF** action.
+The export uses saved data, embeds locally bundled Public Sans regular/bold TTF
+fonts, wraps text on A4 pages, keeps headings with their first content line, and
+adds page numbers. Optional empty sections remain visible as unfilled. Fonts are
+served from the app; no project data is uploaded to a PDF service. Font licensing
+and the pinned source revision are recorded in `public/fonts/pdf/`.
+
 `bun run test` runs Vitest unit, PostgreSQL integration, and authenticated HTTP tests using temporary databases and an isolated Nuxt server. Tests cover authentication, synchronization, segmentation, multiple projects per customer, optional DB architecture, required sections, foreign keys, scoped updates, and preservation through Abby refreshes. No tests call the real Abby API. Continue running `bun run lint`, `bun run typecheck`, and `bun run build`.

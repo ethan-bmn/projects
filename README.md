@@ -189,6 +189,14 @@ at their existing URLs. Customers with projects cannot be deleted from the datab
 The editor warns before discarding unsaved changes. Project API routes require the
 owner's session, reject cross-origin writes, and scope reads/updates to the customer.
 
+On a saved project's page, choose **Exporter en PDF** to download its cahier des
+charges. jsPDF loads on demand and creates an A4 document in the browser with the
+customer, project name, update date, all specification sections, and page numbers.
+Long text wraps and continues across pages; empty optional sections are marked
+as unfilled. The bundled Public Sans fonts preserve French accents and ligatures
+(see `public/fonts/pdf/OFL.txt`). PDF generation does not upload project text to
+an external service and exports the saved specification.
+
 ## Production
 
 Build the application for production:

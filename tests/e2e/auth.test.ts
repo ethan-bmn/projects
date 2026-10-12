@@ -254,7 +254,9 @@ describe('owner authentication', () => {
       expect(persisted.project.name).toBe(input.name)
       const page = await fetch(`/clients/${clientId}/projects/${first.id}`, { headers: { cookie } })
       expect(page.status).toBe(200)
-      expect(await page.text()).toContain('Cahier des charges')
+      const html = await page.text()
+      expect(html).toContain('Cahier des charges')
+      expect(html).toContain('Exporter en PDF')
       const anonymousPage = await fetch(`/clients/${clientId}/projects/new`, { redirect: 'manual' })
       expect(anonymousPage.headers.get('location')).toBe('/auth')
     } finally {

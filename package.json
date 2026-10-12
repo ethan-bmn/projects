@@ -19,6 +19,7 @@
     "@iconify-json/lucide": "^1.2.139",
     "@iconify-json/simple-icons": "^1.2.98",
     "@nuxt/ui": "^4.11.3",
+    "jspdf": "^4.2.1",
     "nuxt": "^4.6.0",
     "nuxt-auth-utils": "^0.5.31",
     "postgres": "^3.4.9",
