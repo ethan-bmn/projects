@@ -31,7 +31,7 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
   const height = doc.internal.pageSize.getHeight()
   const textWidth = width - margin * 2
   const bottom = height - 25
-  const headerBlue = [43, 111, 174] as const
+  const accentColor = [104, 103, 246] as const
   let y = 25
 
   function font(size: number, bold = false) {
@@ -41,7 +41,7 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
 
   function nextPage() {
     doc.addPage()
-    doc.setFillColor(...headerBlue)
+    doc.setFillColor(...accentColor)
     doc.rect(margin, 8, textWidth, 12, 'F')
     font(9)
     doc.setTextColor(255)
@@ -69,7 +69,7 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
     }
   }
 
-  doc.setFillColor(...headerBlue)
+  doc.setFillColor(...accentColor)
   doc.rect(margin, 15, textWidth, 30, 'F')
   font(20, true)
   doc.setTextColor(255)
@@ -88,7 +88,7 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
   const updated = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'Europe/Paris' }).format(new Date(detail.project.updatedAt))
   write(`Mis à jour le ${updated}`, 10, false, 100)
   y += 2
-  doc.setDrawColor(...headerBlue)
+  doc.setDrawColor(...accentColor)
   doc.setLineWidth(0.4)
   doc.line(margin, y, width - margin, y)
   y += 4
@@ -107,9 +107,9 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
     const bodyHeight = bodyLines.length * bodySize * 0.352778 * 1.45
     // Keep short sections together and leave several content lines below longer headings.
     ensureSpace(headingHeight + 2 + Math.min(bodyHeight, 22))
-    doc.setFillColor(239, 245, 250)
+    doc.setFillColor(245, 245, 255)
     doc.rect(margin, y - 4.5, textWidth, headingHeight + 1.8, 'F')
-    doc.setFillColor(...headerBlue)
+    doc.setFillColor(...accentColor)
     doc.rect(margin, y - 4.5, 0.8, headingHeight + 1.8, 'F')
     write(heading, 11.5, true, 24, 3)
     y += 2

@@ -195,7 +195,7 @@ owner's session, reject cross-origin writes, and scope reads/updates to the cust
 On a saved project's page, choose **Exporter en PDF** to download its cahier des
 charges. jsPDF loads on demand and creates an A4 document in the browser with the
 customer, project name, update date, all specification sections, and page numbers.
-The blue header displays the white document title and Ethan BAUMANN EI's business
+The `#6867f6` header displays the white document title and Ethan BAUMANN EI's business
 details at the top-right. Section bands and compact continuation headers aid reading.
 Long text wraps and continues across pages; empty optional sections are marked
 as unfilled. The bundled Public Sans fonts preserve French accents and ligatures
