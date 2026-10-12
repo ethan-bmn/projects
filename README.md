@@ -1,4 +1,10 @@
-# Nuxt Starter Template
+# Abby Projects
+
+This project will provide a private workspace with one secure account for its owner, importing clients from Abby and managing multiple projects per client, with specifications stored for each project. Public registration and additional accounts are outside the scope.
+
+See [the project design](docs/project-design.md) for the data model, access controls, and synchronization behavior. PostgreSQL runs locally through Docker Compose. Owner login uses a database account seeded from `.env`. Abby clients are stored locally and synchronized daily; project/specification management is planned.
+
+## Starter Template
 
 [![Nuxt UI](https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?logo=nuxt&labelColor=020420)](https://ui.nuxt.com)
 
@@ -44,13 +50,124 @@ bun run lint
 bun run typecheck
 ```
 
+### Owner Login
+
+Login reads the single owner account from PostgreSQL. Environment credentials are used only by the seed command. If `.env` already exists, add the authentication entries from `.env.example` without replacing your database settings.
+
+1. Set `NUXT_OWNER_EMAIL` to your email.
+2. Set `NUXT_OWNER_PASSWORD` to a password of at least 12 characters, or run `bun run auth:hash` and copy its output into `NUXT_OWNER_PASSWORD_HASH`. Set only one password option. Enclose the value in single quotes to preserve `$` characters. The seed stores a scrypt hash, never a plain password.
+3. Set `NUXT_SESSION_PASSWORD` to a random secret of at least 32 characters. For example, generate one with `bun -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
+4. Start PostgreSQL, then run `bun run db:seed`. This applies migrations and creates or updates the owner from `.env`.
+5. Restart Nuxt and visit `/auth`. Signing in redirects to `/`.
+
+The database enforces at most one owner account and there is no registration endpoint. All other pages use global authentication middleware, and application API routes require an owner session. The server checks the database password hash and stores the session in an encrypted, HttpOnly cookie with an eight-hour lifetime. Production requires HTTPS for secure cookies. Changing `.env` credentials alone does not change login: rerun `bun run db:seed`. Updating the database credentials invalidates old sessions on their next validation. Sign out clears the browser cookie; sealed sessions do not provide server-side revocation of copied cookies.
+
+To apply future schema migrations without changing credentials, run `bun run db:migrate`. Applied migrations are tracked with checksums; add a new SQL file rather than editing an applied migration. Reseeding does not delete clients or projects. Repeating the seed with unchanged credentials preserves the owner row and password hash. PostgreSQL database-user credentials (`POSTGRES_*`) remain separate from your application login.
+
+### Authentication Tests
+
+```bash
+bun run test
+```
+
+Vitest tests global route middleware and starts an isolated Nuxt production server for HTTP integration tests. Start PostgreSQL before running the suite. Tests read `TEST_DATABASE_URL` (or `DATABASE_URL` from `.env`), create a randomly named temporary database, and remove only that database afterward. The connection needs permission to create databases. Your application owner row is untouched. CI provides a PostgreSQL service.
+
+Coverage includes guest redirects, signed-in navigation, expired sessions, rejected credentials, cookie tampering, API protection, logout, login request limits, idempotent migration/seeding, the single-account constraint, and database credential updates without restarting Nuxt.
+
 ## Development Server
+
+### Local PostgreSQL
+
+Use Docker with a Compose version supporting `up --wait`, and start the Docker engine. Docker installed inside WSL also works. Copy the environment template once if `.env` does not already exist:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+On macOS/Linux, use `cp .env.example .env`. Set your own `POSTGRES_PASSWORD` in `.env` and update `DATABASE_URL` to match. URL-encode special characters in the URL's credentials. If port 5432 is occupied, change `POSTGRES_PORT` and the URL's port together.
+
+```bash
+docker compose config --quiet
+docker compose up -d --wait postgres
+docker compose ps
+```
+
+When using Docker inside WSL, run these commands from the repository directory in WSL:
+
+```bash
+cd /mnt/c/Users/Ethan/Desktop/Dev/projects
+docker compose up -d --wait postgres
+docker compose ps
+```
+
+Or invoke Docker from PowerShell through WSL:
+
+```powershell
+wsl --exec sh -lc 'cd /mnt/c/Users/Ethan/Desktop/Dev/projects && docker compose up -d --wait postgres'
+```
+
+The service uses PostgreSQL 18, binds to `127.0.0.1`, and stores data in a named volume mounted at `/var/lib/postgresql`, following the [official image's PostgreSQL 18 layout](https://hub.docker.com/_/postgres). `DATABASE_URL` connects the Nuxt server and database commands to PostgreSQL. `NUXT_DATABASE_URL` may override it for a deployed Nuxt server. Starting the container alone does not create the owner account; run `bun run db:seed` once your owner credentials are set.
+
+Useful database commands:
+
+```bash
+docker compose logs -f postgres
+docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+docker compose down
+```
+
+`docker compose down` preserves database data. `docker compose down --volumes` deletes the local database permanently. Initialization variables only apply to an empty volume; changing `.env` does not update existing database users or passwords. These credentials are for local development, not production.
+
+### Nuxt
 
 Start the development server on `http://localhost:3000`:
 
 ```bash
 bun run dev
 ```
+
+## Abby client synchronization
+
+1. Create an API key in [Abby integrations](https://my.app-abby.com/settings/integrations).
+2. Set `NUXT_ABBY_API_KEY` in your ignored `.env` file. Keep it on the server.
+3. Run `bun run db:migrate`, then restart `bun run dev`.
+4. Sign in and click **Synchroniser les clients** to import immediately.
+
+`NUXT_ABBY_API_BASE_URL` defaults to `https://api.app-abby.com`, as documented in
+[Abby authentication](https://docs.abby.fr/api/authentification). The
+[clients API schema](https://docs.abby.fr/api/clients) also lists `https://api.abby.fr`;
+if needed, set that alternate host explicitly. HTTPS and these two hosts are enforced.
+The integration fetches every page of `GET /organizations` and `GET /contacts`,
+using page/limit parameters and a Bearer key. Organizations become business clients
+with their legal name, commercial name, and emails. Contacts without an organization
+become individual clients with their full name and emails. A contact associated with
+an organization is represented by that organization, so multiple people at the same
+company produce one business client. An active organization embedded in a contact
+is included even if absent from the organization list; its unavailable fields stay empty.
+People associated with archived organizations are not imported as individuals.
+
+The server checks for a due import five seconds after startup and every hour thereafter.
+Successful imports are at least 24 hours apart; failed automatic imports wait at least
+one hour before retrying. Manual imports can run at any time. The server must remain
+running for automatic updates; after downtime it catches up at startup.
+
+Clients are upserted by `(kind, abby_id)` while preserving local UUIDs. Business and
+individual Abby IDs cannot collide. Only active clients
+are fetched; missing/archived clients become inactive locally rather than being deleted.
+No client data changes until every page has been fetched and validated. A failed DB
+write rolls back the import. PostgreSQL locks prevent simultaneous automatic/manual
+imports, including across server instances. The page displays the last successful
+sync, failures, and stored clients with pagination and filters for **Tous les clients**,
+**Entreprises**, and **Particuliers**. Keys and upstream error bodies
+are excluded from browser responses and sync logs.
+
+Migration `004_abby_clients.sql` replaces the previous import table and resets sync
+timestamps. Applied SQL migrations remain immutable for checksum verification.
+Migration `005_client_segmentation.sql` preserves existing organization UUIDs, adds
+the client type and compound identity, and makes the expanded import due. When an
+individual joins an organization, their old individual row becomes inactive; it is
+reactivated with the same local ID if they become standalone again. Local project
+relations are preserved rather than reassigned automatically.
 
 ## Production
 

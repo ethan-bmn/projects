@@ -2,37 +2,37 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
 
 const items: DropdownMenuItem[] = [{
-  label: 'Starter',
+  label: 'Démarrage',
   to: 'https://starter-template.nuxt.dev/',
   color: 'primary',
   checked: true,
   type: 'checkbox'
 }, {
-  label: 'Landing',
+  label: 'Présentation',
   to: 'https://landing-template.nuxt.dev/'
 }, {
-  label: 'Docs',
+  label: 'Documentation',
   to: 'https://docs-template.nuxt.dev/'
 }, {
   label: 'SaaS',
   to: 'https://saas-template.nuxt.dev/'
 }, {
-  label: 'Dashboard',
+  label: 'Tableau de bord',
   to: 'https://dashboard-template.nuxt.dev/'
 }, {
-  label: 'Chat',
+  label: 'Discussion',
   to: 'https://chat-template.nuxt.dev/'
 }, {
   label: 'Portfolio',
   to: 'https://portfolio-template.nuxt.dev/'
 }, {
-  label: 'Changelog',
+  label: 'Historique des versions',
   to: 'https://changelog-template.nuxt.dev/'
 }, {
-  label: 'Editor',
+  label: 'Éditeur',
   to: 'https://editor-template.nuxt.dev/'
 }, {
-  label: 'Calendar',
+  label: 'Calendrier',
   to: 'https://calendar-template.nuxt.dev/'
 }]
 </script>
@@ -47,7 +47,7 @@ const items: DropdownMenuItem[] = [{
     size="xs"
   >
     <UButton
-      label="Starter"
+      label="Démarrage"
       variant="subtle"
       trailing-icon="i-lucide-chevron-down"
       size="xs"

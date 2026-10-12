@@ -1,53 +1,55 @@
-<script setup>
-useHead({
-  meta: [
-    { name: 'viewport', content: 'width=device-width, initial-scale=1' }
-  ],
-  link: [
-    { rel: 'icon', href: '/favicon.ico' }
-  ],
-  htmlAttrs: {
-    lang: 'en'
+<script setup lang="ts">
+import { fr } from '@nuxt/ui/locale'
+
+const { loggedIn, user, clear } = useUserSession()
+const signingOut = ref(false)
+
+async function signOut() {
+  signingOut.value = true
+  try {
+    await clear()
+    await navigateTo('/auth', { replace: true })
+  } finally {
+    signingOut.value = false
   }
+}
+
+useHead({
+  meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1' }],
+  link: [{ rel: 'icon', href: '/favicon.ico' }],
+  htmlAttrs: { lang: 'fr' }
 })
 
-const title = 'Nuxt Starter Template'
-const description = 'A production-ready starter template powered by Nuxt UI. Build beautiful, accessible, and performant applications in minutes, not hours.'
-
 useSeoMeta({
-  title,
-  description,
-  ogTitle: title,
-  ogDescription: description,
-  ogImage: 'https://ui.nuxt.com/assets/templates/nuxt/starter-light.png',
-  twitterCard: 'summary_large_image'
+  title: 'Abby Projects',
+  description: 'Gestion privée des clients et des cahiers des charges de leurs projets.'
 })
 </script>
 
 <template>
-  <UApp>
-    <UHeader>
+  <UApp :locale="fr">
+    <UHeader
+      v-if="loggedIn"
+      :toggle="false"
+    >
       <template #left>
         <NuxtLink
           to="/"
-          class="focus-visible:outline-3 outline-primary/25 rounded-md p-1 -ms-1"
+          class="rounded-md p-1 font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-primary"
         >
-          <AppLogo class="w-auto h-6 shrink-0" />
+          Abby Projects
         </NuxtLink>
-
-        <TemplateMenu />
       </template>
 
       <template #right>
+        <span class="hidden text-sm text-muted sm:block">{{ user?.email }}</span>
         <UColorModeButton />
-
         <UButton
-          to="https://github.com/nuxt-ui-templates/starter"
-          target="_blank"
-          icon="i-simple-icons-github"
-          aria-label="GitHub"
+          label="Se déconnecter"
           color="neutral"
           variant="ghost"
+          :loading="signingOut"
+          @click="signOut"
         />
       </template>
     </UHeader>
@@ -55,26 +57,5 @@ useSeoMeta({
     <UMain>
       <NuxtPage />
     </UMain>
-
-    <USeparator icon="i-simple-icons-nuxtdotjs" />
-
-    <UFooter>
-      <template #left>
-        <p class="text-sm text-muted">
-          Built with Nuxt UI • © {{ new Date().getFullYear() }}
-        </p>
-      </template>
-
-      <template #right>
-        <UButton
-          to="https://github.com/nuxt-ui-templates/starter"
-          target="_blank"
-          icon="i-simple-icons-github"
-          aria-label="GitHub"
-          color="neutral"
-          variant="ghost"
-        />
-      </template>
-    </UFooter>
   </UApp>
 </template>

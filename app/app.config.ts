@@ -1,8 +1,33 @@
 export default defineAppConfig({
   ui: {
     colors: {
-      primary: 'green',
-      neutral: 'slate'
+      primary: 'zinc',
+      neutral: 'zinc'
+    },
+    button: {
+      slots: {
+        base: 'rounded-md font-medium transition-colors duration-150'
+      },
+      variants: {
+        size: {
+          md: { base: 'h-9 px-3 text-sm' }
+        }
+      }
+    },
+    input: {
+      slots: {
+        base: 'rounded-md bg-default shadow-none'
+      },
+      variants: {
+        size: {
+          md: { base: 'h-9 px-3 text-sm' }
+        }
+      }
+    },
+    header: {
+      slots: {
+        root: 'static border-b border-default bg-default backdrop-blur-none'
+      }
     }
   }
 })
