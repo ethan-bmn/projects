@@ -178,10 +178,13 @@ projects; select a project to read its specification or click **Modifier** to ed
 Every project has a name (maximum 200 characters) and these multiline sections:
 contexte métier, contexte technique, objectifs, enjeux, contraintes métiers,
 contraintes techniques, architecture logicielle, architecture DB, outils et frameworks,
-and planning. Business context, technical context, technical constraints, database
-architecture, and planning are optional; the other sections are required. Each allows up to
-20,000 characters. Planning is free text for stages, deliverables, and dates.
-Optional sections are stored as `null` when empty; existing content is preserved.
+planning, périmètre du projet, parties prenantes, besoins fonctionnels, besoins non
+fonctionnels, gestion des données, nom de domaine(s) ciblé(s), livrables attendus,
+critères de recette, and exploitation et maintenance. Objectives, stakes, business
+constraints, software architecture, and tools/frameworks are required; all other
+sections are optional. Each allows up to 20,000 characters. Planning is free text
+for stages, deliverables, and dates. Optional sections are stored as `null` when
+empty; existing projects can be edited to fill the new sections without a migration.
 
 Projects use a foreign key to the customer's stable local UUID. Abby refreshes never
 overwrite their names or specifications. Inactive customers' projects remain accessible
@@ -192,6 +195,8 @@ owner's session, reject cross-origin writes, and scope reads/updates to the cust
 On a saved project's page, choose **Exporter en PDF** to download its cahier des
 charges. jsPDF loads on demand and creates an A4 document in the browser with the
 customer, project name, update date, all specification sections, and page numbers.
+The blue header displays the white document title and Ethan BAUMANN EI's business
+details at the top-right. Section bands and compact continuation headers aid reading.
 Long text wraps and continues across pages; empty optional sections are marked
 as unfilled. The bundled Public Sans fonts preserve French accents and ligatures
 (see `public/fonts/pdf/OFL.txt`). PDF generation does not upload project text to

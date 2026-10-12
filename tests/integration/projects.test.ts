@@ -20,6 +20,21 @@ beforeEach(async () => {
 })
 
 describe('customer projects', () => {
+  it('reads existing specifications without the new sections and saves them on edit', async () => {
+    const input = projectInput()
+    const newSections = ['projectScope', 'stakeholders', 'functionalRequirements', 'nonFunctionalRequirements', 'dataManagement', 'targetDomains', 'deliverables', 'acceptanceCriteria', 'operationsAndMaintenance']
+    const specification = Object.fromEntries(Object.entries(input.specification).filter(([key]) => !newSections.includes(key)))
+    const [row] = await database.sql`
+      INSERT INTO projects (client_id, name, specification)
+      VALUES (${businessId}, ${input.name}, ${database.sql.json(specification)}) RETURNING id
+    `
+    const existing = await getProject(database.sql, businessId, row!.id)
+    expect(existing.project.specification.objectives).toBe(input.specification.objectives)
+    for (const key of newSections) expect(existing.project.specification[key as keyof typeof input.specification]).toBeNull()
+    await updateProject(database.sql, businessId, row!.id, input)
+    expect((await getProject(database.sql, businessId, row!.id)).project.specification).toEqual(input.specification)
+  })
+
   it('stores multiple independent projects for one customer and keeps customer lists separate', async () => {
     const first = await createProject(database.sql, businessId, projectInput('Site web'))
     const second = await createProject(database.sql, businessId, projectInput('Application mobile'))

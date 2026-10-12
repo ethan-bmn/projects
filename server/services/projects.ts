@@ -46,7 +46,8 @@ interface ProjectRow {
 
 function project(row: ProjectRow): Project {
   return {
-    id: row.id, clientId: row.client_id, name: row.name, specification: row.specification,
+    id: row.id, clientId: row.client_id, name: row.name,
+    specification: Object.fromEntries(projectSections.map(section => [section.key, row.specification[section.key] ?? null])) as ProjectSpecification,
     createdAt: row.created_at.toISOString(), updatedAt: row.updated_at.toISOString()
   }
 }

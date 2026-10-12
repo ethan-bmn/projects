@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { validateProjectInput } from '../../server/services/projects'
 import { projectInput } from '../helpers/projects'
+import { projectSections } from '../../shared/types/projects'
 
 describe('project input validation', () => {
   it('accepts the specification with optional DB architecture and preserves multiline text', () => {
@@ -12,7 +13,7 @@ describe('project input validation', () => {
     expect(input.name).toBe('  Refonte du site  ')
   })
 
-  describe.each(['businessContext', 'technicalContext', 'technicalConstraints', 'databaseArchitecture', 'schedule'])('optional section %s', (section) => {
+  describe.each(projectSections.filter(section => section.optional).map(section => section.key))('optional section %s', (section) => {
     it.each([undefined, null, '', '   '])('accepts missing or blank content: %s', (value) => {
       const input = projectInput()
       const result = validateProjectInput({ ...input, specification: { ...input.specification, [section]: value } })

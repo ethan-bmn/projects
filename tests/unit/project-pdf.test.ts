@@ -37,6 +37,10 @@ describe('project PDF export', () => {
       expect(written).toContain(heading)
     }
     expect(written).toContain('Non renseigné (optionnel).')
+    for (const heading of ['Périmètre du projet', 'Parties prenantes', 'Besoins fonctionnels', 'Besoins non fonctionnels', 'Gestion des données', 'Livrables attendus', 'Critères de recette', 'Exploitation et maintenance', 'Nom de domaine(s) ciblé(s)']) {
+      expect(written).toContain(heading)
+    }
+    expect(written).toContain('boutique.example.test')
     expect(input.project.specification.databaseArchitecture).toBeNull()
   })
 

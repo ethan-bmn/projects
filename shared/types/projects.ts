@@ -5,11 +5,20 @@ export const projectSections = [
   { key: 'technicalContext', label: 'Contexte technique', optional: true },
   { key: 'objectives', label: 'Objectifs', optional: false },
   { key: 'stakes', label: 'Enjeux', optional: false },
+  { key: 'projectScope', label: 'Périmètre du projet', optional: true },
+  { key: 'stakeholders', label: 'Parties prenantes', optional: true },
+  { key: 'functionalRequirements', label: 'Besoins fonctionnels', optional: true },
+  { key: 'nonFunctionalRequirements', label: 'Besoins non fonctionnels', optional: true },
   { key: 'businessConstraints', label: 'Contraintes métiers', optional: false },
   { key: 'technicalConstraints', label: 'Contraintes techniques', optional: true },
   { key: 'softwareArchitecture', label: 'Architecture logicielle', optional: false },
   { key: 'databaseArchitecture', label: 'Architecture DB', optional: true },
+  { key: 'dataManagement', label: 'Gestion des données', optional: true },
   { key: 'toolsAndFrameworks', label: 'Outils et frameworks', optional: false },
+  { key: 'targetDomains', label: 'Nom de domaine(s) ciblé(s)', optional: true },
+  { key: 'deliverables', label: 'Livrables attendus', optional: true },
+  { key: 'acceptanceCriteria', label: 'Critères de recette', optional: true },
+  { key: 'operationsAndMaintenance', label: 'Exploitation et maintenance', optional: true },
   { key: 'schedule', label: 'Planning', optional: true }
 ] as const
 

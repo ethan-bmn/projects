@@ -31,6 +31,7 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
   const height = doc.internal.pageSize.getHeight()
   const textWidth = width - margin * 2
   const bottom = height - 25
+  const headerBlue = [43, 111, 174] as const
   let y = 25
 
   function font(size: number, bold = false) {
@@ -40,13 +41,13 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
 
   function nextPage() {
     doc.addPage()
-    doc.setFillColor(29, 78, 216)
-    doc.rect(margin - 4, 8, textWidth + 8, 12, 'F')
+    doc.setFillColor(...headerBlue)
+    doc.rect(margin, 8, textWidth, 12, 'F')
     font(9)
     doc.setTextColor(255)
-    doc.text('Cahier des charges', margin, 15)
-    const name = doc.splitTextToSize(cleanText(detail.project.name), textWidth / 2) as string[]
-    doc.text(name[0] ?? '', width - margin, 15, { align: 'right' })
+    doc.text('Cahier des charges', margin + 4, 15)
+    const name = doc.splitTextToSize(cleanText(detail.project.name), textWidth / 2 - 8) as string[]
+    doc.text(name[0] ?? '', width - margin - 4, 15, { align: 'right' })
     y = 28
   }
 
@@ -68,15 +69,18 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
     }
   }
 
-  doc.setFillColor(29, 78, 216)
-  doc.rect(margin - 4, 15, textWidth + 8, 20, 'F')
-  y = 28
-  write('Cahier des charges', 22, true, 255)
-  y = 42
-  write('Ethan BAUMANN EI', 10, true, 24)
-  write('SIREN : 130584659', 9, false, 100)
-  write('+33667739428 | contact@ethanbaumann.fr', 9, false, 100)
-  y += 2
+  doc.setFillColor(...headerBlue)
+  doc.rect(margin, 15, textWidth, 30, 'F')
+  font(20, true)
+  doc.setTextColor(255)
+  doc.text('Cahier des charges', margin + 4, 32)
+  font(10, true)
+  doc.text('Ethan BAUMANN EI', width - margin - 4, 24, { align: 'right' })
+  font(9)
+  for (const [index, line] of ['SIREN : 130584659', '+33667739428', 'contact@ethanbaumann.fr'].entries()) {
+    doc.text(line, width - margin - 4, 29 + index * 5, { align: 'right' })
+  }
+  y = 56
   write(detail.project.name, 16, true, 24)
   y += 4
   write(`Client : ${detail.client.name}`)
@@ -84,8 +88,8 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
   const updated = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'Europe/Paris' }).format(new Date(detail.project.updatedAt))
   write(`Mis à jour le ${updated}`, 10, false, 100)
   y += 2
-  doc.setDrawColor(63)
-  doc.setLineWidth(0.5)
+  doc.setDrawColor(...headerBlue)
+  doc.setLineWidth(0.4)
   doc.line(margin, y, width - margin, y)
   y += 4
 
@@ -95,13 +99,21 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
     const heading = `${index + 1}. ${section.label}`
     const headingLines = doc.splitTextToSize(heading, textWidth - 6) as string[]
     const headingHeight = headingLines.length * 11.5 * 0.352778 * 1.45
-    ensureSpace(headingHeight + 2 + 11 * 0.352778 * 1.45)
-    doc.setFillColor(244, 244, 245)
+    const content = detail.project.specification[section.key]
+    const body = content || 'Non renseigné (optionnel).'
+    const bodySize = content ? 11 : 10
+    font(bodySize)
+    const bodyLines = doc.splitTextToSize(cleanText(body), textWidth) as string[]
+    const bodyHeight = bodyLines.length * bodySize * 0.352778 * 1.45
+    // Keep short sections together and leave several content lines below longer headings.
+    ensureSpace(headingHeight + 2 + Math.min(bodyHeight, 22))
+    doc.setFillColor(239, 245, 250)
     doc.rect(margin, y - 4.5, textWidth, headingHeight + 1.8, 'F')
+    doc.setFillColor(...headerBlue)
+    doc.rect(margin, y - 4.5, 0.8, headingHeight + 1.8, 'F')
     write(heading, 11.5, true, 24, 3)
     y += 2
-    const content = detail.project.specification[section.key]
-    write(content || 'Non renseigné (optionnel).', content ? 11 : 10, false, content ? 45 : 110)
+    write(body, bodySize, false, content ? 45 : 110)
   }
 
   const pages = doc.getNumberOfPages()
@@ -112,7 +124,7 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
     doc.line(margin, height - 20, width - margin, height - 20)
     font(9)
     doc.setTextColor(100)
-    doc.text('Cahier des charges', margin, height - 12)
+    doc.text('Ethan BAUMANN EI', margin, height - 12)
     doc.text(`Page ${page} / ${pages}`, width - margin, height - 12, { align: 'right' })
   }
   return doc
