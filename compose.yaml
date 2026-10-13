@@ -1,6 +1,22 @@
 name: abby-projects
 
 services:
+  chartdb:
+    image: ghcr.io/chartdb/chartdb:1.20.1
+    profiles: ["diagrams"]
+    restart: unless-stopped
+    environment:
+      DISABLE_ANALYTICS: "true"
+      HIDE_CHARTDB_CLOUD: "true"
+    ports:
+      - "127.0.0.1:${CHARTDB_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
   postgres:
     image: postgres:18-alpine
     restart: unless-stopped

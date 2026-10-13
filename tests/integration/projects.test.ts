@@ -3,6 +3,7 @@ import { createProject, getClientProjects, getProject, updateProject } from '../
 import { syncClients } from '../../server/services/client-sync'
 import { createTestDatabase } from '../helpers/database'
 import { projectInput } from '../helpers/projects'
+import { projectDiagrams } from '../helpers/diagrams'
 
 const database = await createTestDatabase()
 afterAll(database.cleanup)
@@ -20,6 +21,15 @@ beforeEach(async () => {
 })
 
 describe('customer projects', () => {
+  it('stores diagrams, preserves them for older callers, and clears them explicitly', async () => {
+    const input = { ...projectInput(), diagrams: projectDiagrams() }
+    const created = await createProject(database.sql, businessId, input)
+    expect((await getProject(database.sql, businessId, created.id)).project.diagrams).toEqual(input.diagrams)
+    expect((await updateProject(database.sql, businessId, created.id, projectInput('Texte modifié'))).diagrams).toEqual(input.diagrams)
+    const cleared = await updateProject(database.sql, businessId, created.id, { ...input, diagrams: { database: null, wbs: [] } })
+    expect(cleared.diagrams).toEqual({ database: null, wbs: [] })
+  })
+
   it('reads existing specifications without the new sections and saves them on edit', async () => {
     const input = projectInput()
     const newSections = ['projectScope', 'stakeholders', 'functionalRequirements', 'nonFunctionalRequirements', 'dataManagement', 'targetDomains', 'deliverables', 'acceptanceCriteria', 'operationsAndMaintenance']

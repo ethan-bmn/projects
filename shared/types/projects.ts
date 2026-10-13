@@ -1,4 +1,5 @@
 import type { Client } from './clients'
+import type { ProjectDiagrams } from './diagrams'
 
 export const projectSections = [
   { key: 'businessContext', label: 'Contexte métier', optional: true },
@@ -30,6 +31,7 @@ export type ProjectSpecification = Record<Exclude<ProjectSection, OptionalProjec
 export interface ProjectInput {
   name: string
   specification: ProjectSpecification
+  diagrams?: ProjectDiagrams
 }
 
 export interface ProjectSummary {
@@ -42,6 +44,7 @@ export interface ProjectSummary {
 
 export interface Project extends ProjectSummary {
   specification: ProjectSpecification
+  diagrams?: ProjectDiagrams
 }
 
 export interface ClientProjects {

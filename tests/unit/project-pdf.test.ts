@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { projectPdfFilename, renderProjectPdf } from '../../app/lib/project-pdf'
 import type { ProjectDetail } from '../../shared/types/projects'
 import { projectInput } from '../helpers/projects'
+import { projectDiagrams } from '../helpers/diagrams'
 
 const fonts = {
   regular: (await readFile(new URL('../../public/fonts/pdf/PublicSans-Regular.ttf', import.meta.url))).toString('base64'),
@@ -18,6 +19,38 @@ function detail(): ProjectDetail {
 }
 
 describe('project PDF export', () => {
+  it('exports diagram-only sections as vector drawings with readable French labels', () => {
+    const doc = new jsPDF()
+    const pages = new Map<string, number>()
+    const original = doc.text.bind(doc)
+    const text = vi.spyOn(doc, 'text').mockImplementation((...args: Parameters<typeof doc.text>) => {
+      pages.set(String(args[0]), doc.getCurrentPageInfo().pageNumber)
+      return original(...args)
+    })
+    const rectangles = vi.spyOn(doc, 'rect')
+    const input = detail()
+    input.project.diagrams = projectDiagrams()
+    input.project.specification.databaseArchitecture = null
+    input.project.specification.schedule = null
+    renderProjectPdf(doc, input, fonts)
+    const written = text.mock.calls.map(call => String(call[0])).join('\n')
+    for (const label of ['Architecture DB', 'Planning', 'client_id : uuid', '1. Conception', '1.1. Rédiger le cahier des charges', '2. Livraison']) expect(written).toContain(label)
+    expect(written).not.toContain('Non renseigné')
+    expect(rectangles.mock.calls.filter(call => call[4] === 'FD')).toHaveLength(5)
+    expect(pages.get('2. Livraison')).toBe(pages.get('1. Conception'))
+  })
+
+  it('paginates large WBS diagrams without losing tasks or drawing text below the footer', () => {
+    const doc = new jsPDF()
+    const text = vi.spyOn(doc, 'text')
+    const input = detail()
+    input.project.diagrams = { database: null, wbs: Array.from({ length: 100 }, (_, index) => ({ id: String(index), parentId: null, label: `Tâche ${index}` })) }
+    renderProjectPdf(doc, input, fonts)
+    expect(doc.getNumberOfPages()).toBeGreaterThan(5)
+    expect(text.mock.calls.map(call => String(call[0]))).toContain('100. Tâche 99')
+    for (const [, , y] of text.mock.calls) expect(y).toBeLessThanOrEqual(doc.internal.pageSize.getHeight() - 12)
+  })
+
   it('generates a real PDF with every filled section and embedded French glyphs', () => {
     const doc = new jsPDF()
     const text = vi.spyOn(doc, 'text')

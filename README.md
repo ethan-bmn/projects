@@ -203,6 +203,33 @@ preserve French accents and ligatures
 (see `public/fonts/pdf/OFL.txt`). PDF generation does not upload project text to
 an external service and exports the saved specification.
 
+### Database diagrams and WBS planning
+
+Run `bun run db:migrate` to add diagram storage to existing projects. Start the
+local ChartDB editor with `docker compose --profile diagrams up -d --wait chartdb`.
+With Docker in WSL, run:
+
+```powershell
+wsl --exec sh -lc 'cd /mnt/c/Users/Ethan/Desktop/Dev/projects && docker compose --profile diagrams up -d --wait chartdb'
+```
+
+ChartDB is available at `http://localhost:8080`, bound to the local machine with
+analytics disabled. Set `CHARTDB_PORT` and `NUXT_PUBLIC_CHARTDB_URL` together to
+change its address. In **Architecture DB**, open ChartDB in a new tab or show its
+embedded editor. Export the diagram as JSON from ChartDB and import that file
+into the project, then save. The app previews the tables and relationships and
+keeps the original JSON; download it to reopen or modify it in ChartDB. ChartDB's
+browser workspace and project storage are separate: changes reach the project
+when you import and save the JSON. Imports support up to 50 tables, 60 fields per
+table, 200 relationships, and 500 Ko per file.
+
+In **Planning**, select **Ajouter une phase**, then add named tasks and subtasks.
+Use the arrow controls to reorder siblings; removing a task also removes its
+descendants after confirmation. The WBS supports 100 tasks and six levels.
+Both diagrams are optional, coexist with existing text, and appear in the saved
+project and PDF even without text. The PDF draws vector diagrams and paginates
+large WBS trees; large database schemas also include readable table details.
+
 ## Production
 
 Build the application for production:

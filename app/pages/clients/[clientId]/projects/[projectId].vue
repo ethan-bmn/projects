@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { projectSections } from '#shared/types/projects'
 import type { Project, ProjectDetail, ProjectInput } from '#shared/types/projects'
+import { databaseDrawing, wbsDrawing } from '#shared/utils/diagrams'
 
 const route = useRoute()
 const clientId = String(route.params.clientId)
@@ -16,6 +17,8 @@ const exporting = ref(false)
 const exportError = ref('')
 const config = useRuntimeConfig()
 const editor = useTemplateRef<{ markSaved: () => void }>('editor')
+const dbDrawing = computed(() => data.value?.project.diagrams?.database ? databaseDrawing(data.value.project.diagrams.database) : null)
+const planningDrawing = computed(() => data.value?.project.diagrams?.wbs.length ? wbsDrawing(data.value.project.diagrams.wbs) : null)
 
 async function exportPdf() {
   if (exporting.value || !data.value) return
@@ -122,6 +125,19 @@ async function save(input: ProjectInput) {
         <p class="mt-2 whitespace-pre-wrap wrap-break-word text-sm leading-6 text-muted">
           {{ data.project.specification[section.key] || 'Non renseignée' }}
         </p>
+        <DiagramPreview
+          v-if="section.key === 'databaseArchitecture' && dbDrawing"
+          :drawing="dbDrawing"
+          label="Architecture de la base de données"
+          class="mt-3"
+        />
+        <DiagramPreview
+          v-if="section.key === 'schedule' && planningDrawing"
+          :drawing="planningDrawing"
+          label="Décomposition du projet en tâches (WBS)"
+          class="mt-3"
+          tree
+        />
       </section>
     </div>
   </UContainer>

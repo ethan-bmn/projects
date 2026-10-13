@@ -7,9 +7,14 @@ const props = defineProps<{ initial?: ProjectInput, pending: boolean, error: str
 const emit = defineEmits<{ submit: [input: ProjectInput], cancel: [] }>()
 const form = reactive({
   name: props.initial?.name ?? '',
+  diagrams: {
+    database: props.initial?.diagrams?.database ?? null,
+    wbs: props.initial?.diagrams?.wbs.map(item => ({ ...item })) ?? []
+  },
   specification: Object.fromEntries(projectSections.map(section => [section.key, props.initial?.specification[section.key] ?? ''])) as Record<ProjectSection, string>
 })
 const saved = ref(JSON.stringify(form))
+const importingDiagram = ref(false)
 const dirty = computed(() => JSON.stringify(form) !== saved.value)
 
 function markSaved() {
@@ -31,9 +36,10 @@ onMounted(() => window.addEventListener('beforeunload', beforeUnload))
 onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 
 function submit() {
-  if (props.pending) return
+  if (props.pending || importingDiagram.value) return
   emit('submit', {
     name: form.name,
+    diagrams: form.diagrams,
     specification: Object.fromEntries(projectSections.map(section => [
       section.key,
       section.optional && !form.specification[section.key].trim() ? null : form.specification[section.key]
@@ -91,6 +97,17 @@ function cancel() {
           :disabled="pending"
           class="w-full"
         />
+        <DatabaseDiagramEditor
+          v-if="section.key === 'databaseArchitecture'"
+          v-model="form.diagrams.database"
+          :disabled="pending"
+          @busy="importingDiagram = $event"
+        />
+        <WbsEditor
+          v-if="section.key === 'schedule'"
+          v-model="form.diagrams.wbs"
+          :disabled="pending"
+        />
       </UFormField>
     </fieldset>
 
@@ -106,6 +123,7 @@ function cancel() {
         type="submit"
         label="Enregistrer le projet"
         :loading="pending"
+        :disabled="importingDiagram"
       />
       <UButton
         label="Annuler"

@@ -2,6 +2,8 @@ import type postgres from 'postgres'
 import type { Client } from '../../shared/types/clients'
 import { projectSections } from '../../shared/types/projects'
 import type { ClientProjects, Project, ProjectDetail, ProjectInput, ProjectSpecification, ProjectSummary } from '../../shared/types/projects'
+import type { ProjectDiagrams } from '../../shared/types/diagrams'
+import { validateDiagrams } from '../../shared/utils/diagrams'
 
 export class ProjectError extends Error {
   constructor(message: string, public statusCode = 400) {
@@ -32,7 +34,11 @@ export function validateProjectInput(value: unknown): ProjectInput {
     if (section.optional) specification[section.key] = content.trim() ? content : null
     else specification[section.key] = content
   }
-  return { name: input.name.trim(), specification }
+  try {
+    return { name: input.name.trim(), specification, ...(input.diagrams !== undefined ? { diagrams: validateDiagrams(input.diagrams) } : {}) }
+  } catch (error) {
+    throw new ProjectError(error instanceof Error ? error.message : 'Les diagrammes sont invalides.')
+  }
 }
 
 interface ProjectRow {
@@ -40,6 +46,7 @@ interface ProjectRow {
   client_id: string
   name: string
   specification: ProjectSpecification
+  diagrams: ProjectDiagrams
   created_at: Date
   updated_at: Date
 }
@@ -48,6 +55,7 @@ function project(row: ProjectRow): Project {
   return {
     id: row.id, clientId: row.client_id, name: row.name,
     specification: Object.fromEntries(projectSections.map(section => [section.key, row.specification[section.key] ?? null])) as ProjectSpecification,
+    diagrams: row.diagrams,
     createdAt: row.created_at.toISOString(), updatedAt: row.updated_at.toISOString()
   }
 }
@@ -78,8 +86,8 @@ export async function getClientProjects(sql: postgres.Sql, clientId: string): Pr
 
 export async function createProject(sql: postgres.Sql, clientId: string, input: ProjectInput): Promise<Project> {
   const [row] = await sql<ProjectRow[]>`
-    INSERT INTO projects (client_id, name, specification)
-    SELECT id, ${input.name}, ${sql.json(input.specification)} FROM clients WHERE id = ${clientId}
+    INSERT INTO projects (client_id, name, specification, diagrams)
+    SELECT id, ${input.name}, ${sql.json(input.specification)}, ${sql.json(input.diagrams ?? { database: null, wbs: [] })} FROM clients WHERE id = ${clientId}
     RETURNING *
   `
   if (!row) throw new ProjectError('Client introuvable.', 404)
@@ -95,7 +103,9 @@ export async function getProject(sql: postgres.Sql, clientId: string, projectId:
 
 export async function updateProject(sql: postgres.Sql, clientId: string, projectId: string, input: ProjectInput): Promise<Project> {
   const [row] = await sql<ProjectRow[]>`
-    UPDATE projects SET name = ${input.name}, specification = ${sql.json(input.specification)}, updated_at = clock_timestamp()
+    UPDATE projects SET name = ${input.name}, specification = ${sql.json(input.specification)},
+      diagrams = CASE WHEN ${input.diagrams !== undefined} THEN ${sql.json(input.diagrams ?? { database: null, wbs: [] })} ELSE diagrams END,
+      updated_at = clock_timestamp()
     WHERE id = ${projectId} AND client_id = ${clientId} RETURNING *
   `
   if (!row) throw new ProjectError('Projet introuvable pour ce client.', 404)

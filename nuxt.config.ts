@@ -19,6 +19,9 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    public: {
+      chartdbUrl: 'http://localhost:8080'
+    },
     databaseUrl: '',
     abbyApiKey: '',
     abbyApiBaseUrl: 'https://api.app-abby.com',
