@@ -6,6 +6,21 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { migrateDatabase, ownerSeedCredentials, seedOwner } from '../../database/setup'
 import { createTestDatabase } from '../helpers/database'
 import { projectInput } from '../helpers/projects'
+import { projectDiagrams } from '../helpers/diagrams'
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
+
+let svgStatus = 200
+let svgBody = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><text>clients</text></svg>'
+let svgSource = ''
+const svgWorker = createServer(async (request, response) => {
+  const chunks: Buffer[] = []
+  for await (const chunk of request) chunks.push(Buffer.from(chunk))
+  svgSource = JSON.parse(Buffer.concat(chunks).toString()).source
+  response.writeHead(svgStatus, { 'Content-Type': 'image/svg+xml' }).end(svgBody)
+})
+await new Promise<void>(resolve => svgWorker.listen(0, '127.0.0.1', resolve))
+afterAll(() => new Promise<void>((resolve, reject) => svgWorker.close(error => error ? reject(error) : resolve())))
 
 const email = 'owner@example.test'
 const password = 'test-owner-password-only'
@@ -22,6 +37,7 @@ await setup({
     NUXT_DATABASE_URL: database.url,
     DATABASE_URL: database.url,
     NUXT_ABBY_API_KEY: '',
+    NUXT_CHARTDB_EXPORT_URL: `http://127.0.0.1:${(svgWorker.address() as AddressInfo).port}`,
     // These differ deliberately: runtime environment credentials must not bypass the DB.
     NUXT_OWNER_EMAIL: 'not-the-owner@example.test',
     NUXT_OWNER_PASSWORD_HASH: await new Scrypt({}).make('unused-environment-password'),
@@ -58,6 +74,41 @@ function sessionCookie(response: Response) {
 }
 
 describe('owner authentication', () => {
+  it('exports saved ChartDB schemas as SVG through protected customer-scoped routes', async () => {
+    const cookie = sessionCookie(await login())
+    const [customer] = await database.sql`INSERT INTO clients (kind, abby_id, name) VALUES ('individual', 'svg-export-person', 'SVG person') RETURNING id`
+    const headers = { cookie, 'Content-Type': 'application/json' }
+    const input = { ...projectInput('Été : architecture'), diagrams: projectDiagrams() }
+    try {
+      const created = await (await fetch(`/api/clients/${customer!.id}/projects`, { method: 'POST', headers, body: JSON.stringify(input) })).json()
+      const url = `/api/clients/${customer!.id}/projects/${created.id}/database.svg`
+      expect((await fetch(url, { method: 'POST' })).status).toBe(401)
+      expect((await fetch(url, { method: 'POST', headers: { ...headers, Origin: 'https://other.example.test' } })).status).toBe(403)
+      expect((await fetch(`/api/clients/00000000-0000-0000-0000-000000000000/projects/${created.id}/database.svg`, { method: 'POST', headers })).status).toBe(404)
+      const response = await fetch(url, { method: 'POST', headers })
+      expect(response.status).toBe(200)
+      expect(response.headers.get('content-type')).toContain('image/svg+xml')
+      expect(response.headers.get('content-disposition')).toBe('attachment; filename="architecture-db-ete-architecture.svg"')
+      expect(response.headers.get('cache-control')).toBe('no-store')
+      expect(await response.text()).toBe(svgBody)
+      expect(svgSource).toBe(input.diagrams.database)
+      svgStatus = 429
+      expect((await fetch(url, { method: 'POST', headers })).status).toBe(429)
+      svgStatus = 503
+      expect((await fetch(url, { method: 'POST', headers })).status).toBe(503)
+      svgStatus = 200
+      svgBody = '<html>invalid renderer response</html>'
+      expect((await fetch(url, { method: 'POST', headers })).status).toBe(503)
+      await fetch(`/api/clients/${customer!.id}/projects/${created.id}`, { method: 'PUT', headers, body: JSON.stringify({ ...input, diagrams: { database: null, wbs: [] } }) })
+      expect((await fetch(url, { method: 'POST', headers })).status).toBe(400)
+    } finally {
+      svgStatus = 200
+      svgBody = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><text>clients</text></svg>'
+      await database.sql`DELETE FROM projects WHERE client_id = ${customer!.id}`
+      await database.sql`DELETE FROM clients WHERE id = ${customer!.id}`
+    }
+  })
+
   it('renames the original account table without changing the stored account', async () => {
     const original = await readFile(new URL('../../database/migrations/001_users.sql', import.meta.url), 'utf8')
     const rename = await readFile(new URL('../../database/migrations/002_user_table.sql', import.meta.url), 'utf8')

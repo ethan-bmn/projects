@@ -25,6 +25,7 @@ export default defineNuxtConfig({
     databaseUrl: '',
     abbyApiKey: '',
     abbyApiBaseUrl: 'https://api.app-abby.com',
+    chartdbExportUrl: 'http://localhost:8081',
     session: {
       maxAge: 60 * 60 * 8,
       cookie: {

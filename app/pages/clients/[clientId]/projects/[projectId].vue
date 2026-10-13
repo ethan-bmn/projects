@@ -2,6 +2,7 @@
 import { projectSections } from '#shared/types/projects'
 import type { Project, ProjectDetail, ProjectInput } from '#shared/types/projects'
 import { databaseDrawing, wbsDrawing } from '#shared/utils/diagrams'
+import { projectSvgFilename } from '#shared/utils/project-filenames'
 
 const route = useRoute()
 const clientId = String(route.params.clientId)
@@ -14,11 +15,31 @@ const editing = ref(false)
 const pending = ref(false)
 const saveError = ref('')
 const exporting = ref(false)
+const exportingSvg = ref(false)
 const exportError = ref('')
 const config = useRuntimeConfig()
 const editor = useTemplateRef<{ markSaved: () => void }>('editor')
 const dbDrawing = computed(() => data.value?.project.diagrams?.database ? databaseDrawing(data.value.project.diagrams.database) : null)
 const planningDrawing = computed(() => data.value?.project.diagrams?.wbs.length ? wbsDrawing(data.value.project.diagrams.wbs) : null)
+
+async function exportDatabaseSvg() {
+  if (exportingSvg.value || !data.value) return
+  exportingSvg.value = true
+  exportError.value = ''
+  try {
+    const svg = await $fetch<Blob>(`/api/clients/${clientId}/projects/${projectId}/database.svg`, { method: 'POST', responseType: 'blob' })
+    const url = URL.createObjectURL(svg)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = projectSvgFilename(data.value.project.name)
+    anchor.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  } catch {
+    exportError.value = 'Impossible de générer le SVG. Vérifiez que les services Docker ChartDB sont démarrés, puis réessayez.'
+  } finally {
+    exportingSvg.value = false
+  }
+}
 
 async function exportPdf() {
   if (exporting.value || !data.value) return
@@ -130,6 +151,16 @@ async function save(input: ProjectInput) {
           :drawing="dbDrawing"
           label="Architecture de la base de données"
           class="mt-3"
+        />
+        <UButton
+          v-if="section.key === 'databaseArchitecture' && dbDrawing"
+          label="Exporter le SVG avec ChartDB"
+          icon="i-lucide-download"
+          color="neutral"
+          variant="outline"
+          class="mt-3"
+          :loading="exportingSvg"
+          @click="exportDatabaseSvg"
         />
         <DiagramPreview
           v-if="section.key === 'schedule' && planningDrawing"

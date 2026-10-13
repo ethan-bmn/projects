@@ -206,11 +206,12 @@ an external service and exports the saved specification.
 ### Database diagrams and WBS planning
 
 Run `bun run db:migrate` to add diagram storage to existing projects. Start the
-local ChartDB editor with `docker compose --profile diagrams up -d --wait chartdb`.
+local ChartDB editor and SVG renderer with
+`docker compose --profile diagrams up -d --build --wait chartdb chartdb-export`.
 With Docker in WSL, run:
 
 ```powershell
-wsl --exec sh -lc 'cd /mnt/c/Users/Ethan/Desktop/Dev/projects && docker compose --profile diagrams up -d --wait chartdb'
+wsl --exec sh -lc 'cd /mnt/c/Users/Ethan/Desktop/Dev/projects && docker compose --profile diagrams up -d --build --wait chartdb chartdb-export'
 ```
 
 ChartDB is available at `http://localhost:8080`, bound to the local machine with
@@ -222,6 +223,17 @@ keeps the original JSON; download it to reopen or modify it in ChartDB. ChartDB'
 browser workspace and project storage are separate: changes reach the project
 when you import and save the JSON. Imports support up to 50 tables, 60 fields per
 table, 200 relationships, and 500 Ko per file.
+
+On a saved project, choose **Exporter le SVG avec ChartDB** under **Architecture DB**
+to download the database diagram as an SVG image. The local `chartdb-export` service
+opens the saved JSON in an isolated browser and uses ChartDB's native SVG export,
+including its field and relationship styling. It closes the browser workspace
+after each export and only permits requests to the local ChartDB instance. The
+app endpoint requires the owner's session and checks that the project belongs
+to the customer. Empty architectures cannot be exported. Concurrent exports
+return a retry message. Set `CHARTDB_EXPORT_PORT` and `NUXT_CHARTDB_EXPORT_URL`
+together if port 8081 is unavailable. The worker's dependency and lockfile live
+in `tools/chartdb-export/`; its Playwright version must match its Docker image.
 
 In **Planning**, select **Ajouter une phase**, then add named tasks and subtasks.
 Use the arrow controls to reorder siblings; removing a task also removes its
