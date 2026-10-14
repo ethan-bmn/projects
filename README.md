@@ -249,19 +249,28 @@ subtasks remain connected.
 
 ## Production
 
-Build the application for production:
+The complete production stack is defined in
+[`docker-compose.production.yaml`](docker-compose.production.yaml): Nuxt,
+PostgreSQL, automatic migrations and owner setup, ChartDB, and its SVG export
+worker. Your existing proxy or hosting platform handles HTTPS. Copy
+`.env.production.example` to `.env.production`, set the public ChartDB URL and
+credentials, then run:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.production.yaml config --quiet
+docker compose --env-file .env.production -f docker-compose.production.yaml up -d --build
+```
+
+See [the deployment guide](docs/deployment.md) for proxy routing, password
+generation, first startup, backups, and updates.
+The local development stack uses `docker-compose.yaml`.
+
+To build and preview without Docker:
 
 ```bash
 bun run build
-```
-
-Locally preview production build:
-
-```bash
 bun run preview
 ```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
 
 ## Renovate integration
 
