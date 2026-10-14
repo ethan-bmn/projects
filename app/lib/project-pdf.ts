@@ -9,6 +9,12 @@ export interface PdfFonts {
   bold: string
 }
 
+export interface PdfDatabaseImage {
+  data: string
+  width: number
+  height: number
+}
+
 function cleanText(value: string) {
   return value.replace(/\r\n?/g, '\n').replace(/\p{Cc}/gu, character => character === '\n' ? '\n' : character === '\t' ? '    ' : '')
 }
@@ -20,7 +26,7 @@ export function projectPdfFilename(name: string) {
   return `cahier-des-charges-${Array.from(slug || 'projet').slice(0, 80).join('')}.pdf`
 }
 
-export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFonts) {
+export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFonts, databaseImage?: PdfDatabaseImage) {
   doc.addFileToVFS('PublicSans-Regular.ttf', fonts.regular)
   doc.addFileToVFS('PublicSans-Bold.ttf', fonts.bold)
   doc.addFont('PublicSans-Regular.ttf', 'PublicSans', 'normal')
@@ -72,8 +78,9 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
   }
 
   function drawDatabase(drawing: DiagramDrawing, source: string) {
-    const scale = Math.min(textWidth / drawing.width, 170 / drawing.height)
-    const diagramHeight = drawing.height * scale
+    const dimensions = databaseImage ?? drawing
+    const scale = Math.min(textWidth / dimensions.width, 170 / dimensions.height)
+    const diagramHeight = dimensions.height * scale
     const previousPage = doc.getNumberOfPages()
     ensureSpace(diagramHeight + 8)
     if (doc.getNumberOfPages() !== previousPage) {
@@ -81,34 +88,39 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
       y += 2
     }
     const originY = y
-    doc.setDrawColor(...accentColor)
-    doc.setLineWidth(0.3)
-    for (const edge of drawing.edges) {
-      const from = drawing.boxes.find(box => box.id === edge.from)!
-      const to = drawing.boxes.find(box => box.id === edge.to)!
-      const x1 = margin + (from.x + from.width) * scale
-      const x2 = margin + to.x * scale
-      const y1 = originY + (from.y + from.height / 2) * scale
-      const y2 = originY + (to.y + to.height / 2) * scale
-      const middle = (x1 + x2) / 2
-      doc.line(x1, y1, middle, y1)
-      doc.line(middle, y1, middle, y2)
-      doc.line(middle, y2, x2, y2)
-    }
-    for (const box of drawing.boxes) {
-      const x = margin + box.x * scale
-      const top = originY + box.y * scale
-      doc.setFillColor(245, 245, 255)
-      doc.rect(x, top, box.width * scale, box.height * scale, 'FD')
-      box.lines.forEach((line, index) => {
-        font(13 * scale / 0.352778, index === 0)
-        doc.setTextColor(45)
-        doc.text(cleanText(line), x + 12 * scale, top + (24 + index * 20) * scale)
-      })
+    if (databaseImage) {
+      const diagramWidth = dimensions.width * scale
+      doc.addImage(databaseImage.data, 'PNG', margin + (textWidth - diagramWidth) / 2, originY, diagramWidth, diagramHeight)
+    } else {
+      doc.setDrawColor(...accentColor)
+      doc.setLineWidth(0.3)
+      for (const edge of drawing.edges) {
+        const from = drawing.boxes.find(box => box.id === edge.from)!
+        const to = drawing.boxes.find(box => box.id === edge.to)!
+        const x1 = margin + (from.x + from.width) * scale
+        const x2 = margin + to.x * scale
+        const y1 = originY + (from.y + from.height / 2) * scale
+        const y2 = originY + (to.y + to.height / 2) * scale
+        const middle = (x1 + x2) / 2
+        doc.line(x1, y1, middle, y1)
+        doc.line(middle, y1, middle, y2)
+        doc.line(middle, y2, x2, y2)
+      }
+      for (const box of drawing.boxes) {
+        const x = margin + box.x * scale
+        const top = originY + box.y * scale
+        doc.setFillColor(245, 245, 255)
+        doc.rect(x, top, box.width * scale, box.height * scale, 'FD')
+        box.lines.forEach((line, index) => {
+          font(13 * scale / 0.352778, index === 0)
+          doc.setTextColor(45)
+          doc.text(cleanText(line), x + 12 * scale, top + (24 + index * 20) * scale)
+        })
+      }
     }
     y += diagramHeight + 6
     // Large schemas also get readable details instead of relying on tiny overview labels.
-    if (scale < 0.19) {
+    if (Math.min(textWidth / drawing.width, 170 / drawing.height) < 0.19) {
       const diagram = parseChartDb(source)
       for (const table of diagram.tables) {
         ensureSpace(16)
@@ -124,13 +136,23 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
 
   function drawWbs(items: WbsItem[]) {
     const parents = new Map<string, { x: number, bottom: number, page: number }>()
-    for (const { item, depth, number } of wbsRows(items)) {
+    function layout(row: ReturnType<typeof wbsRows>[number], continued = false) {
+      font(10)
+      const lines = doc.splitTextToSize(cleanText(`${row.number}. ${row.item.label}${continued ? ' (suite)' : ''}`), textWidth - row.depth * 8 - 8) as string[]
+      return { ...row, lines, boxHeight: lines.length * 5 + 5 }
+    }
+    const rows = wbsRows(items).map(row => layout(row))
+    const byId = new Map(rows.map(row => [row.item.id, row]))
+    const subtreeHeights = new Map(rows.map(row => [row.item.id, row.boxHeight + 4]))
+    for (const row of rows.toReversed()) {
+      if (row.item.parentId) {
+        subtreeHeights.set(row.item.parentId, subtreeHeights.get(row.item.parentId)! + subtreeHeights.get(row.item.id)!)
+      }
+    }
+
+    function drawRow({ item, depth, lines, boxHeight }: typeof rows[number]) {
       const x = margin + depth * 8
       const boxWidth = textWidth - depth * 8
-      font(10)
-      const lines = doc.splitTextToSize(cleanText(`${number}. ${item.label}`), boxWidth - 8) as string[]
-      const boxHeight = lines.length * 5 + 5
-      ensureSpace(boxHeight + 4)
       doc.setDrawColor(...accentColor)
       doc.setLineWidth(0.3)
       const parent = item.parentId ? parents.get(item.parentId) : undefined
@@ -145,6 +167,28 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
       lines.forEach((line, index) => doc.text(line, x + 4, y + 5 + index * 5))
       parents.set(item.id, { x, bottom: y + boxHeight, page: doc.getNumberOfPages() })
       y += boxHeight + 4
+    }
+
+    for (const [index, row] of rows.entries()) {
+      const ancestors: typeof rows = []
+      let parentId = row.item.parentId
+      while (parentId) {
+        const parent = byId.get(parentId)!
+        ancestors.unshift(layout(parent, true))
+        parentId = parent.item.parentId
+      }
+      const contextHeight = ancestors.reduce((total, parent) => total + parent.boxHeight + 4, 0)
+      const subtreeHeight = subtreeHeights.get(row.item.id)!
+      const child = rows[index + 1]
+      const firstRowsHeight = row.boxHeight + 4 + (child?.item.parentId === row.item.id ? child.boxHeight + 4 : 0)
+      // Move a complete task group when it fits; otherwise keep the first child with its parent.
+      const space = subtreeHeight + contextHeight <= bottom - 28 ? subtreeHeight : firstRowsHeight
+      if (y + space > bottom) {
+        nextPage()
+        // Repeat the ancestor chain so every subtask still has a visible connection.
+        for (const parent of ancestors) drawRow(parent)
+      }
+      drawRow(row)
     }
   }
 
@@ -191,18 +235,26 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
     const bodyLines = doc.splitTextToSize(cleanText(body), textWidth) as string[]
     const bodyHeight = bodyLines.length * bodySize * 0.352778 * 1.45
     const wbs = section.key === 'schedule' ? detail.project.diagrams?.wbs ?? [] : []
-    const wbsHeight = wbsRows(wbs).reduce((height, { item, depth, number }) => {
+    const planningRows = wbsRows(wbs)
+    const taskHeights = planningRows.map(({ item, depth, number }) => {
       font(10)
       const lines = doc.splitTextToSize(cleanText(`${number}. ${item.label}`), textWidth - depth * 8 - 8) as string[]
-      return height + lines.length * 5 + 9
-    }, 0)
+      return lines.length * 5 + 9
+    })
+    const wbsHeight = taskHeights.reduce((total, height) => total + height, 0)
+    const nextRoot = planningRows.findIndex((row, index) => index > 0 && row.depth === 0)
+    const firstGroupHeight = taskHeights.slice(0, nextRoot < 0 ? taskHeights.length : nextRoot).reduce((total, height) => total + height, 0)
+    const wbsStartHeight = firstGroupHeight + headingHeight + 2 <= bottom - 28
+      ? firstGroupHeight
+      : (taskHeights[0] ?? 0) + (planningRows[1]?.depth === 1 ? taskHeights[1]! : 0)
     const database = section.key === 'databaseArchitecture' ? detail.project.diagrams?.database : null
     const architecture = database && !body.trim() ? databaseDrawing(database) : null
-    const architectureHeight = architecture ? Math.min(textWidth / architecture.width, 170 / architecture.height) * architecture.height + 8 : 0
+    const architectureDimensions = architecture ? databaseImage ?? architecture : null
+    const architectureHeight = architectureDimensions ? Math.min(textWidth / architectureDimensions.width, 170 / architectureDimensions.height) * architectureDimensions.height + 8 : 0
     // Keep short sections together and leave several content lines below longer headings.
     const contentSpace = wbsHeight > 0 && wbsHeight <= 90 && bodyHeight <= 30
       ? bodyHeight + wbsHeight
-      : Math.max(Math.min(bodyHeight, 22), wbs.length ? 14 : 0, architectureHeight)
+      : Math.max(Math.min(bodyHeight, 22), wbs.length ? wbsStartHeight + Math.min(bodyHeight, 30) : 0, architectureHeight)
     ensureSpace(headingHeight + 2 + contentSpace)
     doc.setFillColor(245, 245, 255)
     doc.rect(margin, y - 4.5, textWidth, headingHeight + 1.8, 'F')
@@ -243,10 +295,63 @@ async function loadFont(url: string) {
 }
 
 export async function downloadProjectPdf(detail: ProjectDetail, baseUrl = '/') {
-  const fontPath = `${baseUrl.replace(/\/?$/, '/')}fonts/pdf/`
-  const [regular, bold] = await Promise.all([
-    loadFont(`${fontPath}PublicSans-Regular.ttf`), loadFont(`${fontPath}PublicSans-Bold.ttf`)
+  const basePath = baseUrl.replace(/\/?$/, '/')
+  const fontPath = `${basePath}fonts/pdf/`
+  const [regular, bold, databaseImage] = await Promise.all([
+    loadFont(`${fontPath}PublicSans-Regular.ttf`), loadFont(`${fontPath}PublicSans-Bold.ttf`),
+    detail.project.diagrams?.database ? loadDatabaseImage(detail, basePath) : undefined
   ])
-  const doc = renderProjectPdf(new jsPDF({ unit: 'mm', format: 'a4', compress: true }), detail, { regular, bold })
+  const doc = renderProjectPdf(new jsPDF({ unit: 'mm', format: 'a4', compress: true }), detail, { regular, bold }, databaseImage)
   await doc.save(projectPdfFilename(detail.project.name), { returnPromise: true })
+}
+
+async function loadDatabaseImage(detail: ProjectDetail, basePath: string): Promise<PdfDatabaseImage> {
+  const response = await fetch(`${basePath}api/clients/${encodeURIComponent(detail.client.id)}/projects/${encodeURIComponent(detail.project.id)}/database.svg`, { method: 'POST' })
+  if (!response.ok) throw new Error('Diagramme SVG indisponible. Vérifiez que les services Docker ChartDB sont démarrés.')
+  const svg = await response.text()
+  const image = new Image()
+  // A data URL keeps ChartDB's embedded HTML labels usable on a canvas.
+  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+  await image.decode()
+  if (!image.naturalWidth || !image.naturalHeight) throw new Error('Dimensions du diagramme SVG invalides')
+  // Preserve detail at print resolution while bounding memory for large schemas.
+  const scale = Math.min(2, 4096 / Math.max(image.naturalWidth, image.naturalHeight))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale))
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale))
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Impossible de dessiner le diagramme SVG')
+  context.fillStyle = '#ffffff'
+  context.fillRect(0, 0, canvas.width, canvas.height)
+  context.drawImage(image, 0, 0, canvas.width, canvas.height)
+  // ChartDB exports the surrounding workspace too; trim its blank padding for print.
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
+  let left = canvas.width
+  let top = canvas.height
+  let right = -1
+  let bottom = -1
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      const offset = (y * canvas.width + x) * 4
+      if (pixels[offset]! < 250 || pixels[offset + 1]! < 250 || pixels[offset + 2]! < 250) {
+        left = Math.min(left, x)
+        top = Math.min(top, y)
+        right = Math.max(right, x)
+        bottom = Math.max(bottom, y)
+      }
+    }
+  }
+  if (right < left) throw new Error('Le diagramme SVG est vide')
+  const padding = Math.ceil(12 * scale)
+  left = Math.max(0, left - padding)
+  top = Math.max(0, top - padding)
+  right = Math.min(canvas.width - 1, right + padding)
+  bottom = Math.min(canvas.height - 1, bottom + padding)
+  const cropped = document.createElement('canvas')
+  cropped.width = right - left + 1
+  cropped.height = bottom - top + 1
+  const croppedContext = cropped.getContext('2d')
+  if (!croppedContext) throw new Error('Impossible de dessiner le diagramme SVG')
+  croppedContext.drawImage(canvas, left, top, cropped.width, cropped.height, 0, 0, cropped.width, cropped.height)
+  return { data: cropped.toDataURL('image/png'), width: cropped.width, height: cropped.height }
 }

@@ -239,8 +239,13 @@ In **Planning**, select **Ajouter une phase**, then add named tasks and subtasks
 Use the arrow controls to reorder siblings; removing a task also removes its
 descendants after confirmation. The WBS supports 100 tasks and six levels.
 Both diagrams are optional, coexist with existing text, and appear in the saved
-project and PDF even without text. The PDF draws vector diagrams and paginates
-large WBS trees; large database schemas also include readable table details.
+project and PDF even without text. PDF export includes ChartDB's native database
+SVG, rendered as a high-resolution image to preserve its embedded HTML labels;
+the local ChartDB services must be running for projects with a database diagram.
+Large database schemas also include readable table details. The PDF draws WBS
+tasks as vectors, keeps task groups together when they fit on a page, and repeats
+parent tasks with a “suite” label when a group continues on the next page so
+subtasks remain connected.
 
 ## Production
 

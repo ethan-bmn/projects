@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { jsPDF } from 'jspdf'
-import { describe, expect, it, vi } from 'vitest'
-import { projectPdfFilename, renderProjectPdf } from '../../app/lib/project-pdf'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { downloadProjectPdf, projectPdfFilename, renderProjectPdf } from '../../app/lib/project-pdf'
 import type { ProjectDetail } from '../../shared/types/projects'
 import { projectInput } from '../helpers/projects'
 import { projectDiagrams } from '../helpers/diagrams'
@@ -19,6 +19,105 @@ function detail(): ProjectDetail {
 }
 
 describe('project PDF export', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it.each([[1400, 1100], [600, 4000]])('fits the native database image within the page for dimensions %i × %i', (width, height) => {
+    const doc = new jsPDF()
+    const images = vi.spyOn(doc, 'addImage').mockImplementation(() => doc)
+    const rectangles = vi.spyOn(doc, 'rect')
+    const input = detail()
+    input.project.diagrams = projectDiagrams()
+    input.project.specification.databaseArchitecture = 'Schéma relationnel.'
+    renderProjectPdf(doc, input, fonts, { data: 'native-chartdb-image', width, height })
+    expect(images).toHaveBeenCalledOnce()
+    const [data, format, x, y, drawnWidth, drawnHeight] = images.mock.calls[0] as unknown as [string, string, number, number, number, number]
+    expect([data, format]).toEqual(['native-chartdb-image', 'PNG'])
+    expect(drawnWidth / drawnHeight).toBeCloseTo(width / height)
+    expect(x).toBeGreaterThanOrEqual(20)
+    expect(x + drawnWidth).toBeLessThanOrEqual(doc.internal.pageSize.getWidth() - 20)
+    expect(y + drawnHeight).toBeLessThanOrEqual(doc.internal.pageSize.getHeight() - 25)
+    // Only the WBS boxes remain: the database is no longer redrawn.
+    expect(rectangles.mock.calls.filter(call => call[4] === 'FD')).toHaveLength(3)
+  })
+
+  it('requests the saved native SVG under the app base URL and stops if ChartDB is unavailable', async () => {
+    const input = detail()
+    input.project.diagrams = projectDiagrams()
+    const fetcher = vi.fn(async (url: string) => url.endsWith('.svg')
+      ? new Response('Unavailable', { status: 503 })
+      : new Response(new Uint8Array([1, 2, 3])))
+    vi.stubGlobal('fetch', fetcher)
+    await expect(downloadProjectPdf(input, '/projects/')).rejects.toThrow('Diagramme SVG indisponible')
+    expect(fetcher).toHaveBeenCalledWith('/projects/api/clients/customer/projects/project/database.svg', { method: 'POST' })
+  })
+
+  it('does not request ChartDB for projects without a database diagram', async () => {
+    const fetcher = vi.fn(async () => new Response('Unavailable', { status: 503 }))
+    vi.stubGlobal('fetch', fetcher)
+    await expect(downloadProjectPdf(detail())).rejects.toThrow('Police PDF indisponible')
+    expect(fetcher.mock.calls).toHaveLength(2)
+  })
+
+  it('keeps complete WBS task groups on a single page and breaks between groups', () => {
+    const doc = new jsPDF()
+    const pages = new Map<string, number>()
+    const original = doc.text.bind(doc)
+    vi.spyOn(doc, 'text').mockImplementation((...args: Parameters<typeof doc.text>) => {
+      pages.set(String(args[0]), doc.getCurrentPageInfo().pageNumber)
+      return original(...args)
+    })
+    const input = detail()
+    input.project.diagrams = { database: null, wbs: Array.from({ length: 4 }, (_, group) => [
+      { id: `phase-${group}`, parentId: null, label: `Phase ${group}` },
+      ...Array.from({ length: 7 }, (_, task) => ({ id: `${group}-${task}`, parentId: `phase-${group}`, label: `Tâche ${group}-${task}` }))
+    ]).flat() }
+    renderProjectPdf(doc, input, fonts)
+    for (let group = 0; group < 4; group++) {
+      for (let task = 0; task < 7; task++) {
+        expect(pages.get(`${group + 1}.${task + 1}. Tâche ${group}-${task}`)).toBe(pages.get(`${group + 1}. Phase ${group}`))
+      }
+    }
+    expect(pages.get('1. Phase 0')).not.toBe(pages.get('4. Phase 3'))
+  })
+
+  it('repeats nested parents and draws connections on every page of a split WBS group', () => {
+    const doc = new jsPDF()
+    const labels: { text: string, page: number }[] = []
+    const connections: { x1: number, x2: number, page: number }[] = []
+    const originalText = doc.text.bind(doc)
+    const originalLine = doc.line.bind(doc)
+    vi.spyOn(doc, 'text').mockImplementation((...args: Parameters<typeof doc.text>) => {
+      labels.push({ text: String(args[0]), page: doc.getCurrentPageInfo().pageNumber })
+      return originalText(...args)
+    })
+    vi.spyOn(doc, 'line').mockImplementation((...args: Parameters<typeof doc.line>) => {
+      connections.push({ x1: args[0], x2: args[2], page: doc.getCurrentPageInfo().pageNumber })
+      return originalLine(...args)
+    })
+    const input = detail()
+    input.project.diagrams = { database: null, wbs: [
+      { id: 'phase', parentId: null, label: 'Phase' },
+      { id: 'task', parentId: 'phase', label: 'Travail' },
+      ...Array.from({ length: 50 }, (_, index) => ({ id: String(index), parentId: 'task', label: `Sous-tâche ${index}` }))
+    ] }
+    renderProjectPdf(doc, input, fonts)
+    const subtasks = labels.filter(label => /^1\.1\.\d+\. /.test(label.text))
+    expect(subtasks).toHaveLength(50)
+    const pages = [...new Set(subtasks.map(label => label.page))]
+    expect(pages.length).toBeGreaterThan(2)
+    for (const page of pages.slice(1)) {
+      expect(labels).toContainEqual({ text: '1. Phase (suite)', page })
+      expect(labels).toContainEqual({ text: '1.1. Travail (suite)', page })
+    }
+    for (const page of pages) {
+      const taskCount = subtasks.filter(label => label.page === page).length
+      expect(connections.filter(line => line.page === page && line.x1 === 30 && line.x2 === 36)).toHaveLength(taskCount)
+    }
+  })
+
   it('exports diagram-only sections as vector drawings with readable French labels', () => {
     const doc = new jsPDF()
     const pages = new Map<string, number>()
