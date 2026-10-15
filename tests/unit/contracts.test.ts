@@ -140,6 +140,7 @@ describe('configured project contracts', () => {
     expect(upgraded.version).toBe(2)
     expect(upgraded.fields['client.nom']).toBe(legacy.fields['0.0'])
     expect(upgraded.fields['devis.reference']).toBe(legacy.fields['1.0'])
+    expect(upgraded.fields['contrat.reference']).toBe(`CTR-${legacy.fields['1.0']}`)
     for (const [key, value] of Object.entries(legacy.fields)) expect(upgraded.fields[key]).toBe(value)
     expect(upgraded.quote).toEqual(legacy.quote)
     expect(upgraded.configuration!.confirmations.coherence).toBe(false)

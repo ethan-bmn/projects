@@ -5,6 +5,7 @@ import { formatClientAddress } from './client-address'
 import { activeContractVariables, backups, choice, contractChoices, contractConfirmations, contractVariables, dataProcessing, defaultConfiguration, development, hasService, hosting, selected, support } from './contract-configuration'
 import { configuredContractSections } from './contract-document'
 import type { ContractDocumentSection } from './contract-document'
+import { syncContractReference } from './contract-reference'
 
 export const contractSections = template.map((section, index) => ({
   ...section,
@@ -36,7 +37,11 @@ export function createContract(client: Client): ProjectContract {
 
 export function upgradeContract(contract: ProjectContract | null | undefined, client: Client): ProjectContract {
   if (!contract) return createContract(client)
-  if (contract.version === 2) return structuredClone(contract)
+  if (contract.version === 2) {
+    const updated = structuredClone(contract)
+    syncContractReference(updated.fields)
+    return updated
+  }
   const updated = createContract(client)
   updated.quote = contract.quote ? { ...contract.quote } : null
   // Keep every legacy value, including those that need manual classification under the new choices.
@@ -51,6 +56,7 @@ export function upgradeContract(contract: ProjectContract | null | undefined, cl
     updated.configuration!.choices['rgpd.sous_traitance'] = 'OUI'
     updated.includeDataProcessing = true
   }
+  syncContractReference(updated.fields)
   return updated
 }
 

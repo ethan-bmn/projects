@@ -4,6 +4,7 @@ import type { Client } from '#shared/types/clients'
 import type { ProjectContract } from '#shared/types/contracts'
 import { contractExportIssues, contractSections, filledContractSections, upgradeContract } from '#shared/utils/contracts'
 import { activeContractVariables, contractChoices, contractConfirmations, contractGroups, dataProcessing } from '#shared/utils/contract-configuration'
+import { syncContractReference } from '#shared/utils/contract-reference'
 
 const props = defineProps<{ client: Client, initial?: ProjectContract | null, pending: boolean, error: string }>()
 const emit = defineEmits<{ submit: [contract: ProjectContract], cancel: [] }>()
@@ -25,6 +26,8 @@ const groups = computed(() => contractGroups.map((label, index) => ({
 const confirmations = computed(() => contractConfirmations.filter(field => !field.when || field.when(configuration)))
 const legacyValues = computed(() => Object.entries(form.fields).filter(([key, value]) => /^\d+\.\d+$/.test(key) && value.trim()))
 const legacyLabels = Object.fromEntries(contractSections.flatMap(section => section.fields.map(field => [field.key, `${section.title} — ${field.label}`])))
+
+watch(() => form.fields['devis.reference'], (_, previous) => syncContractReference(form.fields, previous), { flush: 'sync' })
 
 watch([() => JSON.stringify(form.fields), () => form.quote, () => JSON.stringify(configuration.choices), () => JSON.stringify(configuration.selections)], () => {
   for (const field of contractConfirmations) configuration.confirmations[field.key] = false
@@ -209,6 +212,7 @@ async function readQuoteMetadata(bytes?: Uint8Array, replacing = false) {
         :label="field.label"
         :name="field.key"
         :required="!field.optional"
+        :description="field.key === 'contrat.reference' ? 'Générée à partir de la référence du devis. Vous pouvez la personnaliser.' : undefined"
       >
         <UTextarea
           v-if="field.type === 'textarea'"
