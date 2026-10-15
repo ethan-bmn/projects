@@ -23,6 +23,7 @@
     "nuxt": "^4.6.0",
     "nuxt-auth-utils": "^0.5.31",
     "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.4.299",
     "postgres": "^3.4.9",
     "tailwindcss": "^4.3.3"
   },

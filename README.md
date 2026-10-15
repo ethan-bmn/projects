@@ -8,6 +8,8 @@ Each project can store one contract. Apply migration `008_project_contract.sql` 
 
 Migration `009_client_billing_address.sql` adds a structured `billing_address` column to `clients`. Synchronization imports Abby's billing address for both organizations and individual contacts, including the street, complement, postal code, city, state, and country. New contracts prefill the address from this local record; saved contracts keep their original values when a client moves. The migration makes the next automatic import due so existing clients receive their addresses.
 
+Uploading a quote also reads its text locally with PDF.js and prefills a detected quote number in the contract preamble. The reference remains editable. Scanned PDFs without a text layer or unrecognized reference formats require manual entry; the attachment is still retained.
+
 ## Starter Template
 
 [![Nuxt UI](https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?logo=nuxt&labelColor=020420)](https://ui.nuxt.com)

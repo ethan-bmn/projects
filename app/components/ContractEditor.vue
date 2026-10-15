@@ -11,6 +11,7 @@ const saved = ref(JSON.stringify(form))
 const dirty = computed(() => JSON.stringify(form) !== saved.value)
 const uploading = ref(false)
 const uploadError = ref('')
+const quoteNotice = ref('')
 const missing = computed(() => contractMissingFields(form).length)
 const sections = computed(() => contractSections.filter(section => form.includeDataProcessing || !section.title.startsWith('ANNEXE B')))
 function markSaved() {
@@ -43,6 +44,7 @@ async function upload(event: Event) {
   if (!file || uploading.value) return
   uploading.value = true
   uploadError.value = ''
+  quoteNotice.value = ''
   try {
     if (file.size > 5 * 1024 * 1024) throw new Error('Le devis doit peser au maximum 5 Mo.')
     const bytes = new Uint8Array(await file.arrayBuffer())
@@ -53,6 +55,20 @@ async function upload(event: Event) {
     let binary = ''
     for (let offset = 0; offset < bytes.length; offset += 8192) binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192))
     form.quote = { name: file.name, data: btoa(binary) }
+    const referenceField = contractSections.find(section => section.title.startsWith('Préambule'))?.fields.find(field => field.token === '[RÉFÉRENCE]')
+    if (referenceField) form.fields[referenceField.key] = ''
+    try {
+      const { extractQuoteReference } = await import('~/lib/quote-reference')
+      const reference = await extractQuoteReference(bytes)
+      if (reference && referenceField) {
+        form.fields[referenceField.key] = reference
+        quoteNotice.value = `Numéro de devis renseigné : ${reference}. Vous pouvez le modifier dans le préambule.`
+      } else {
+        quoteNotice.value = 'Numéro de devis non détecté. Renseignez la référence dans le préambule.'
+      }
+    } catch {
+      quoteNotice.value = 'Devis joint. La référence n’a pas pu être extraite ; renseignez-la dans le préambule.'
+    }
   } catch (cause) {
     uploadError.value = cause instanceof Error ? cause.message : 'Impossible de lire ce PDF.'
   } finally {
@@ -96,6 +112,13 @@ async function upload(event: Event) {
         class="text-sm text-muted"
       >
         Devis joint : {{ form.quote.name }}
+      </p>
+      <p
+        v-if="quoteNotice"
+        role="status"
+        class="text-sm text-muted"
+      >
+        {{ quoteNotice }}
       </p>
       <p
         v-if="uploadError"
