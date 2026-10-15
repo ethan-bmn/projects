@@ -1,19 +1,21 @@
 import { jsPDF } from 'jspdf'
 import { PDFDocument } from 'pdf-lib'
 import type { ProjectDetail } from '#shared/types/projects'
-import { contractMissingFields, filledContractSections, validateContract } from '#shared/utils/contracts'
+import { contractExportIssues, filledContractSections, validateContract } from '#shared/utils/contracts'
 import { loadFont, projectPdfFilename } from './project-pdf'
 import type { PdfFonts } from './project-pdf'
 
 export function renderContractPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFonts) {
   const contract = validateContract(detail.project.contract)
-  if (!contract || contractMissingFields(contract).length || !contract.quote) throw new Error('Complétez tous les champs du contrat et joignez le devis avant l’export.')
+  if (!contract) throw new Error('Enregistrez le contrat avant l’export.')
+  const issues = contractExportIssues(contract)
+  if (issues.length) throw new Error(`Complétez le contrat avant l’export : ${issues[0]}`)
   doc.addFileToVFS('PublicSans-Regular.ttf', fonts.regular)
   doc.addFileToVFS('PublicSans-Bold.ttf', fonts.bold)
   doc.addFont('PublicSans-Regular.ttf', 'PublicSans', 'normal')
   doc.addFont('PublicSans-Bold.ttf', 'PublicSans', 'bold')
   doc.setLanguage('fr-FR')
-  doc.setProperties({ title: `Contrat - ${detail.project.name}`, author: 'Ethan BAUMANN EI', creator: 'Abby Projects' })
+  doc.setProperties({ title: `Contrat ${contract.fields['contrat.reference']} - ${detail.project.name}`, author: 'Ethan BAUMANN EI', creator: 'Abby Projects' })
   const width = doc.internal.pageSize.getWidth()
   const height = doc.internal.pageSize.getHeight()
   const margin = 20
@@ -62,7 +64,7 @@ export function renderContractPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfF
   }
   write(detail.project.name, 16, true)
   y += 3
-  write('Réalisation et hébergement d’application web', 11, true)
+  write(`Contrat n° ${contract.fields['contrat.reference']}`, 11, true)
   y += 5
   for (const section of filledContractSections(contract)) {
     style(11.5, true)
@@ -77,7 +79,7 @@ export function renderContractPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfF
     y += 3
     if (section.body) write(section.body)
     y += 6
-    if (section.title.startsWith('Article 15')) y += 20
+    if (section.signature) y += 20
   }
   const pages = doc.getNumberOfPages()
   for (let page = 1; page <= pages; page++) {

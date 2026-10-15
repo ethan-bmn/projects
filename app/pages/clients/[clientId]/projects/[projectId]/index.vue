@@ -3,7 +3,7 @@ import { projectSections } from '#shared/types/projects'
 import type { Project, ProjectDetail, ProjectInput } from '#shared/types/projects'
 import { databaseDrawing, wbsDrawing } from '#shared/utils/diagrams'
 import { projectSvgFilename } from '#shared/utils/project-filenames'
-import { contractMissingFields } from '#shared/utils/contracts'
+import { contractExportIssues } from '#shared/utils/contracts'
 
 const route = useRoute()
 const clientId = String(route.params.clientId)
@@ -15,7 +15,7 @@ useSeoMeta({ title: () => `${data.value?.project.name} | Abby Projects` })
 const editing = ref(false)
 const contractError = ref('')
 const exportingContract = ref(false)
-const contractComplete = computed(() => !!data.value?.project.contract?.quote && contractMissingFields(data.value.project.contract).length === 0)
+const contractComplete = computed(() => !!data.value?.project.contract && contractExportIssues(data.value.project.contract).length === 0)
 const pending = ref(false)
 const saveError = ref('')
 const exporting = ref(false)
@@ -164,7 +164,7 @@ async function save(input: ProjectInput) {
       <p
         class="text-sm text-muted"
       >
-        {{ !data.project.contract ? 'Aucun contrat associé à ce projet.' : contractComplete ? `Contrat prêt à exporter. Devis joint : ${data.project.contract.quote?.name}` : 'Brouillon : complétez les champs et joignez le devis pour exporter.' }}
+        {{ !data.project.contract ? 'Aucun contrat associé à ce projet.' : contractComplete ? `Contrat prêt à exporter. Devis joint : ${data.project.contract.quote?.name}` : data.project.contract.version === 1 ? 'Ancien modèle : ouvrez le contrat pour vérifier le nouveau paramétrage.' : 'Brouillon : complétez le paramétrage et les vérifications avant l’export.' }}
       </p>
       <p
         v-if="contractError"

@@ -7,6 +7,7 @@ import { migrateDatabase, ownerSeedCredentials, seedOwner } from '../../database
 import { createTestDatabase } from '../helpers/database'
 import { projectInput } from '../helpers/projects'
 import { projectDiagrams } from '../helpers/diagrams'
+import { auditContract, fullContract } from '../helpers/contracts'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 
@@ -316,6 +317,21 @@ describe('owner authentication', () => {
       const contractHtml = await contractPage.text()
       expect(contractHtml).toContain('Enregistrer le contrat')
       expect(contractHtml).toContain('Retour au projet')
+      expect(contractHtml).toContain('Services commandés au devis')
+      expect(contractHtml).toContain('Traitement de données pour le compte du client')
+      expect(contractHtml).not.toContain('Politique complète de rétention')
+      const configured = fullContract()
+      const savedContract = await fetch(`${url}/${first.id}`, { method: 'PUT', headers, body: JSON.stringify({ ...input, contract: configured }) })
+      expect(savedContract.status).toBe(200)
+      expect((await savedContract.json()).contract).toEqual(configured)
+      const configuredHtml = await (await fetch(contractPath, { headers: { cookie } })).text()
+      expect(configuredHtml).toContain('Politique complète de rétention')
+      expect(configuredHtml).toContain('Sous-traitants ultérieurs, autorisations')
+      const simplified = auditContract()
+      expect((await fetch(`${url}/${first.id}`, { method: 'PUT', headers, body: JSON.stringify({ ...input, contract: simplified }) })).status).toBe(200)
+      const simpleHtml = await (await fetch(contractPath, { headers: { cookie } })).text()
+      expect(simpleHtml).not.toContain('Politique complète de rétention')
+      expect(simpleHtml).not.toContain('Sous-traitants ultérieurs, autorisations')
       expect((await fetch(`/clients/${otherId}/projects/${first.id}/contract`, { headers: { cookie } })).status).toBe(404)
       expect((await fetch(contractPath, { redirect: 'manual' })).headers.get('location')).toBe('/auth')
       const anonymousPage = await fetch(`/clients/${clientId}/projects/new`, { redirect: 'manual' })
