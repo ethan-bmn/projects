@@ -56,7 +56,7 @@ export function configuredContractSections(contract: ProjectContract): ContractD
   let payment = `${paragraphs(4)[0]}\nConditions convenues : ${value('prix.conditions')}.`
   // The template reserves late-payment penalties for professional clients.
   if (['PRO_ENTREPRISE', 'PRO_INDEPENDANT'].includes(choice(config, 'client.type'))) payment += `\n${paragraphs(4)[1]!.split('Pour les consommateurs')[0]!.trim()}`
-  if (consumer(config)) payment += `\nCadre de vente : ${label('client.vente')}.\n${value('consommateur.informations')}\nLes règles impératives applicables aux consommateurs priment.`
+  if (consumer(config)) payment += `\n${value('consommateur.informations')}\nLes règles impératives applicables aux consommateurs priment.`
   // Remove the template author's instruction to adapt the VAT mention; the actual regime is entered above.
   payment = payment.replace(/Mention TVA à adapter[^\n]+/, '')
   article(3, payment)

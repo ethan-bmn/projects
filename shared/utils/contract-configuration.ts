@@ -57,7 +57,6 @@ const yesNo: [string, string][] = [['OUI', 'Oui'], ['NON', 'Non']]
 
 export const contractChoices: ContractChoice[] = [
   single('client.type', 'Type de client', 0, [['PRO_ENTREPRISE', 'Entreprise'], ['PRO_INDEPENDANT', 'Professionnel indépendant'], ['CONSOMMATEUR', 'Particulier'], ['ASSOCIATION', 'Association'], ['AUTRE', 'Autre']]),
-  single('client.vente', 'Cadre de la vente', 0, [['VENTE_A_DISTANCE', 'Vente à distance'], ['VENTE_HORS_ETABLISSEMENT', 'Vente hors établissement'], ['VENTE_EN_ETABLISSEMENT', 'Vente en établissement']], consumer),
   multiple('services', 'Services commandés au devis', 1, [
     ['AUDIT', 'Audit'], ['CONCEPTION', 'Conception'], ['DEVELOPPEMENT', 'Développement'], ['DEPLOIEMENT', 'Déploiement'],
     ['HEBERGEMENT', 'Hébergement'], ['MAINTENANCE_CORRECTIVE', 'Maintenance corrective'], ['MAINTENANCE_EVOLUTIVE', 'Maintenance évolutive'],

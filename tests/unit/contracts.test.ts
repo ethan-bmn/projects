@@ -67,12 +67,11 @@ describe('configured project contracts', () => {
   it('keeps consumer protections and excludes B2B penalties', () => {
     const contract = auditContract()
     contract.configuration!.choices['client.type'] = 'CONSOMMATEUR'
-    contract.configuration!.choices['client.vente'] = 'VENTE_A_DISTANCE'
     completeContract(contract)
     const text = written(contract)
     expect(contractExportIssues(contract)).toEqual([])
     expect(text).toContain('Médiateur de la consommation')
-    expect(text).toContain('Vente à distance')
+    expect(text).not.toContain('Cadre de vente')
     expect(text).toContain('Particulier')
     expect(text).not.toContain('40 €')
     expect(text).not.toContain('pénalités de retard')
