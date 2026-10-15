@@ -10,6 +10,7 @@ const form = reactive<ProjectContract>(structuredClone(toRaw(props.initial ?? cr
 const saved = ref(JSON.stringify(form))
 const dirty = computed(() => JSON.stringify(form) !== saved.value)
 const uploading = ref(false)
+const readingQuote = ref(false)
 const uploadError = ref('')
 const quoteNotice = ref('')
 const missing = computed(() => contractMissingFields(form).length)
@@ -35,13 +36,13 @@ function cancel() {
   emit('cancel')
 }
 function submit() {
-  if (props.pending || uploading.value) return
+  if (props.pending || uploading.value || readingQuote.value) return
   emit('submit', structuredClone(toRaw(form)))
 }
 async function upload(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
-  if (!file || uploading.value) return
+  if (!file || uploading.value || readingQuote.value) return
   uploading.value = true
   uploadError.value = ''
   quoteNotice.value = ''
@@ -55,25 +56,41 @@ async function upload(event: Event) {
     let binary = ''
     for (let offset = 0; offset < bytes.length; offset += 8192) binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192))
     form.quote = { name: file.name, data: btoa(binary) }
-    const referenceField = contractSections.find(section => section.title.startsWith('Préambule'))?.fields.find(field => field.token === '[RÉFÉRENCE]')
-    if (referenceField) form.fields[referenceField.key] = ''
-    try {
-      const { extractQuoteReference } = await import('~/lib/quote-reference')
-      const reference = await extractQuoteReference(bytes)
-      if (reference && referenceField) {
-        form.fields[referenceField.key] = reference
-        quoteNotice.value = `Numéro de devis renseigné : ${reference}. Vous pouvez le modifier dans le préambule.`
-      } else {
-        quoteNotice.value = 'Numéro de devis non détecté. Renseignez la référence dans le préambule.'
-      }
-    } catch {
-      quoteNotice.value = 'Devis joint. La référence n’a pas pu être extraite ; renseignez-la dans le préambule.'
-    }
+    await readQuoteMetadata(bytes, true)
   } catch (cause) {
     uploadError.value = cause instanceof Error ? cause.message : 'Impossible de lire ce PDF.'
   } finally {
     uploading.value = false
     input.value = ''
+  }
+}
+
+async function readQuoteMetadata(bytes?: Uint8Array, replacing = false) {
+  if (!form.quote || readingQuote.value || props.pending) return
+  readingQuote.value = true
+  quoteNotice.value = ''
+  const preamble = contractSections.find(section => section.title.startsWith('Préambule'))
+  const referenceField = preamble?.fields.find(field => field.token === '[RÉFÉRENCE]')
+  const dateField = preamble?.fields.find(field => field.token === '[DATE]')
+  if (replacing) {
+    if (referenceField) form.fields[referenceField.key] = ''
+    if (dateField) form.fields[dateField.key] = ''
+  }
+  try {
+    const { extractQuoteMetadata } = await import('~/lib/quote-reference')
+    const content = bytes ?? Uint8Array.from(atob(form.quote.data), character => character.charCodeAt(0))
+    const { reference, issueDate } = await extractQuoteMetadata(content)
+    if (reference && referenceField) form.fields[referenceField.key] = reference
+    if (issueDate && dateField) form.fields[dateField.key] = issueDate
+    quoteNotice.value = [
+      reference ? `Référence : ${reference}.` : 'Référence non détectée.',
+      issueDate ? `Date d’émission : ${issueDate}.` : 'Date d’émission non détectée.',
+      'Vérifiez ou complétez ces informations dans le préambule.'
+    ].join(' ')
+  } catch {
+    quoteNotice.value = 'Devis joint. La référence et la date d’émission n’ont pas pu être extraites ; renseignez-les dans le préambule.'
+  } finally {
+    readingQuote.value = false
   }
 }
 </script>
@@ -102,7 +119,7 @@ async function upload(event: Event) {
         <input
           type="file"
           accept="application/pdf,.pdf"
-          :disabled="pending || uploading"
+          :disabled="pending || uploading || readingQuote"
           class="mt-2 block w-full text-sm"
           @change="upload"
         >
@@ -113,6 +130,15 @@ async function upload(event: Event) {
       >
         Devis joint : {{ form.quote.name }}
       </p>
+      <UButton
+        v-if="form.quote"
+        label="Lire la référence et la date du PDF"
+        color="neutral"
+        variant="outline"
+        :loading="readingQuote"
+        :disabled="pending || uploading"
+        @click="readQuoteMetadata()"
+      />
       <p
         v-if="quoteNotice"
         role="status"
@@ -175,13 +201,13 @@ async function upload(event: Event) {
         type="submit"
         label="Enregistrer le contrat"
         :loading="pending"
-        :disabled="uploading"
+        :disabled="uploading || readingQuote"
       />
       <UButton
         label="Annuler"
         color="neutral"
         variant="ghost"
-        :disabled="pending || uploading"
+        :disabled="pending || uploading || readingQuote"
         @click="cancel"
       />
     </div>

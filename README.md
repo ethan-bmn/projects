@@ -8,7 +8,7 @@ Each project can store one contract. Apply migration `008_project_contract.sql` 
 
 Migration `009_client_billing_address.sql` adds a structured `billing_address` column to `clients`. Synchronization imports Abby's billing address for both organizations and individual contacts, including the street, complement, postal code, city, state, and country. New contracts prefill the address from this local record; saved contracts keep their original values when a client moves. The migration makes the next automatic import due so existing clients receive their addresses.
 
-Uploading a quote also reads its text locally with PDF.js and prefills a detected quote number in the contract preamble. The reference remains editable. Scanned PDFs without a text layer or unrecognized reference formats require manual entry; the attachment is still retained.
+Uploading a quote also reads all its pages locally with PDF.js and prefills the detected quote reference and issue date in the contract preamble. Both remain editable. Dates are normalized to `DD/MM/YYYY`; validity and expiry dates are excluded. Use **Lire la référence et la date du PDF** to extract the values again from an already attached quote. Scanned PDFs without a text layer or unrecognized formats require manual entry; the attachment is still retained.
 
 ## Starter Template
 
