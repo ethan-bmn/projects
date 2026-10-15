@@ -14,7 +14,7 @@ export default defineEventHandler(async (event): Promise<ClientList> => {
   }
   return getDatabase(event).begin(async (sql) => {
     const clients = await sql`
-      SELECT id, abby_id, kind, name, emails, commercial_name FROM clients
+      SELECT id, abby_id, kind, name, emails, commercial_name, billing_address FROM clients
       WHERE active = true AND (${kind === 'all'} OR kind = ${String(kind)})
       ORDER BY name, id LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
     `
@@ -30,7 +30,8 @@ export default defineEventHandler(async (event): Promise<ClientList> => {
         kind: item.kind,
         name: item.name,
         emails: item.emails,
-        commercialName: item.commercial_name
+        commercialName: item.commercial_name,
+        billingAddress: item.billing_address
       })),
       total: count!.total,
       page,

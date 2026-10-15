@@ -43,12 +43,13 @@ export async function syncClients(
     await transaction`UPDATE clients SET active = false WHERE active = true`
     for (const item of clients) {
       await transaction`
-        INSERT INTO clients (kind, abby_id, name, emails, commercial_name, synced_at)
-        VALUES (${item.kind}, ${item.id}, ${item.name}, ${item.emails}, ${item.commercialName}, ${syncedAt})
+        INSERT INTO clients (kind, abby_id, name, emails, commercial_name, billing_address, synced_at)
+        VALUES (${item.kind}, ${item.id}, ${item.name}, ${item.emails}, ${item.commercialName}, ${item.billingAddress ? transaction.json(item.billingAddress) : null}, ${syncedAt})
         ON CONFLICT (kind, abby_id) DO UPDATE SET
           name = EXCLUDED.name,
           emails = EXCLUDED.emails,
           commercial_name = EXCLUDED.commercial_name,
+          billing_address = EXCLUDED.billing_address,
           active = true,
           updated_at = now(),
           synced_at = EXCLUDED.synced_at

@@ -1,5 +1,14 @@
 export type ClientKind = 'organization' | 'individual'
 
+export type ClientAddress = {
+  address: string | null
+  complement: string | null
+  city: string | null
+  zipCode: string | null
+  state: string | null
+  country: string | null
+}
+
 export interface Client {
   id: string
   abbyId: string
@@ -7,6 +16,7 @@ export interface Client {
   name: string
   emails: string[]
   commercialName: string | null
+  billingAddress: ClientAddress | null
 }
 
 export interface ClientList {

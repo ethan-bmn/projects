@@ -3,10 +3,48 @@ import { fetchAbbyClients } from '../../server/services/abby-client'
 import { syncIsDue } from '../../server/services/client-sync'
 
 const config = { apiKey: 'secret-test-key', baseUrl: 'https://api.app-abby.com' }
-const item = { id: 'abby-1', name: 'Dupont SARL', emails: ['info@example.test'], commercialName: 'Atelier Dupont' }
-const page = (docs: unknown[], number = 1, hasNextPage = false) => Response.json({ docs, page: number, hasNextPage, nextPage: hasNextPage ? number + 1 : null })
+const item = { id: 'abby-1', name: 'Dupont SARL', emails: ['info@example.test'], commercialName: 'Atelier Dupont', billingAddress: null }
+const page = (docs: unknown[], number = 1, hasNextPage = false) => Response.json({ docs: docs.map(doc => doc && typeof doc === 'object' ? { billingAddress: null, ...doc } : doc), page: number, hasNextPage, nextPage: hasNextPage ? number + 1 : null })
 
 describe('Abby segmented client API', () => {
+  it('retrieves standalone contact details when list records omit billing addresses', async () => {
+    const address = { address: '12 rue du Test', zipCode: '69003', city: 'Lyon', country: 'FR' }
+    const request = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(page([]))
+      .mockResolvedValueOnce(Response.json({ docs: [{ id: 'person', fullname: 'Marie' }], page: 1, hasNextPage: false }))
+      .mockResolvedValueOnce(Response.json({ id: 'person', billingAddress: address }))
+    expect((await fetchAbbyClients(config, request))[0]!.billingAddress).toMatchObject(address)
+    const [url, options] = request.mock.calls[2]!
+    expect(new URL(String(url)).pathname).toBe('/contact/person')
+    expect(options?.redirect).toBe('error')
+    expect(options?.headers).toMatchObject({ Authorization: 'Bearer secret-test-key' })
+  })
+
+  it('fails the import if contact detail retrieval fails rather than clearing stored addresses', async () => {
+    const request = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(page([]))
+      .mockResolvedValueOnce(Response.json({ docs: [{ id: 'person', fullname: 'Marie' }], page: 1, hasNextPage: false }))
+      .mockResolvedValueOnce(new Response('private upstream error', { status: 500 }))
+    await expect(fetchAbbyClients(config, request)).rejects.toThrow('indisponible')
+  })
+
+  it('imports structured billing addresses for companies and standalone people', async () => {
+    const address = { address: ' 12 rue du Test ', complement: 'Bâtiment A', zipCode: '69003', city: 'Lyon', country: 'FR' }
+    const request = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(page([{ ...item, billingAddress: address }]))
+      .mockResolvedValueOnce(page([{ id: 'person', fullname: 'Marie', billingAddress: { address: '8 rue Neuve', city: 'Paris', zipCode: '75001' } }]))
+    const clients = await fetchAbbyClients(config, request)
+    expect(clients[0]!.billingAddress).toEqual({ ...address, address: '12 rue du Test', state: null })
+    expect(clients[1]!.billingAddress).toEqual({ address: '8 rue Neuve', complement: null, city: 'Paris', zipCode: '75001', country: null, state: null })
+  })
+
+  it('normalizes empty addresses and rejects malformed address components', async () => {
+    const request = vi.fn<typeof fetch>().mockResolvedValueOnce(page([{ ...item, billingAddress: { address: ' ', city: null } }])).mockResolvedValueOnce(page([]))
+    expect((await fetchAbbyClients(config, request))[0]!.billingAddress).toBeNull()
+    const invalid = vi.fn<typeof fetch>().mockResolvedValueOnce(page([{ ...item, billingAddress: { zipCode: 69003 } }]))
+    await expect(fetchAbbyClients(config, invalid)).rejects.toThrow('adresse de facturation')
+  })
+
   it('fetches every page with server-only authentication and normalizes list fields', async () => {
     const request = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(page([item], 1, true))
@@ -14,9 +52,9 @@ describe('Abby segmented client API', () => {
       .mockResolvedValueOnce(page([{ id: 'person-1', fullname: 'Marie Durand', emails: ['marie@example.test'] }]))
     const result = await fetchAbbyClients(config, request)
     expect(result).toEqual([
-      { id: 'abby-1', kind: 'organization', name: 'Dupont SARL', emails: ['info@example.test'], commercialName: 'Atelier Dupont' },
-      { id: 'abby-2', kind: 'organization', name: 'Durand SAS', emails: [], commercialName: null },
-      { id: 'person-1', kind: 'individual', name: 'Marie Durand', emails: ['marie@example.test'], commercialName: null }
+      { id: 'abby-1', kind: 'organization', name: 'Dupont SARL', emails: ['info@example.test'], commercialName: 'Atelier Dupont', billingAddress: null },
+      { id: 'abby-2', kind: 'organization', name: 'Durand SAS', emails: [], commercialName: null, billingAddress: null },
+      { id: 'person-1', kind: 'individual', name: 'Marie Durand', emails: ['marie@example.test'], commercialName: null, billingAddress: null }
     ])
     expect(request).toHaveBeenCalledTimes(3)
     const [url, options] = request.mock.calls[1]!
@@ -78,7 +116,7 @@ describe('Abby segmented client API', () => {
       ]))
     expect(await fetchAbbyClients(config, request)).toEqual([
       { ...item, kind: 'organization' },
-      { id: item.id, kind: 'individual', name: 'Standalone person', emails: ['person@example.test'], commercialName: null }
+      { id: item.id, kind: 'individual', name: 'Standalone person', emails: ['person@example.test'], commercialName: null, billingAddress: null }
     ])
   })
 
@@ -90,7 +128,7 @@ describe('Abby segmented client API', () => {
         { id: 'employee-2', fullname: 'Marie', organization: { id: 'org-missing', name: 'Embedded company' } }
       ]))
     expect(await fetchAbbyClients(config, request)).toEqual([
-      { id: 'org-missing', kind: 'organization', name: 'Embedded company', emails: [], commercialName: null }
+      { id: 'org-missing', kind: 'organization', name: 'Embedded company', emails: [], commercialName: null, billingAddress: null }
     ])
   })
 

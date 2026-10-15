@@ -13,7 +13,7 @@ const fonts = {
 
 function detail(): ProjectDetail {
   return {
-    client: { id: 'customer', abbyId: 'abby-person', kind: 'individual', name: 'Éloïse Cœur', emails: [], commercialName: null, active: true },
+    client: { id: 'customer', abbyId: 'abby-person', kind: 'individual', name: 'Éloïse Cœur', emails: [], commercialName: null, billingAddress: null, active: true },
     project: { ...projectInput('Création d’une œuvre'), id: 'project', clientId: 'customer', createdAt: '2026-10-12T08:00:00Z', updatedAt: '2026-10-12T08:00:00Z' }
   }
 }

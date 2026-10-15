@@ -1,6 +1,7 @@
 import template from '../contract-template.json'
 import type { Client } from '../types/clients'
 import type { ProjectContract } from '../types/contracts'
+import { formatClientAddress } from './client-address'
 
 export const contractSections = template.map((section, index) => ({
   ...section,
@@ -23,6 +24,7 @@ export function createContract(client: Client): ProjectContract {
   for (const field of parties.fields) {
     if (field.token.startsWith('[NOM / D')) fields[field.key] = client.name
     if (field.token === '[EMAIL]') fields[field.key] = client.emails[0] ?? ''
+    if (field.token === '[ADRESSE]') fields[field.key] = formatClientAddress(client.billingAddress)
   }
   return { version: 1, fields, includeDataProcessing: false, quote: null }
 }

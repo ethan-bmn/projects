@@ -100,7 +100,7 @@ describe('customer projects', () => {
   it('preserves project contents and access when Abby updates or deactivates the customer', async () => {
     const first = await createProject(database.sql, businessId, projectInput())
     const config = { apiKey: 'test-only', baseUrl: 'https://api.app-abby.com' }
-    await syncClients(database.sql, config, { fetchClients: async () => [{ id: 'company', kind: 'organization', name: 'Renamed company', emails: [], commercialName: null }] })
+    await syncClients(database.sql, config, { fetchClients: async () => [{ id: 'company', kind: 'organization', name: 'Renamed company', emails: [], commercialName: null, billingAddress: null }] })
     expect((await getProject(database.sql, businessId, first.id)).project).toEqual(first)
     await syncClients(database.sql, config, { fetchClients: async () => [] })
     const detail = await getProject(database.sql, businessId, first.id)

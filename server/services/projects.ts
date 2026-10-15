@@ -70,12 +70,12 @@ function project(row: ProjectRow): Project {
 
 async function client(sql: postgres.Sql, clientId: string): Promise<Client & { active: boolean }> {
   const [row] = await sql`
-    SELECT id, abby_id, kind, name, emails, commercial_name, active FROM clients WHERE id = ${clientId}
+    SELECT id, abby_id, kind, name, emails, commercial_name, billing_address, active FROM clients WHERE id = ${clientId}
   `
   if (!row) throw new ProjectError('Client introuvable.', 404)
   return {
     id: row.id, abbyId: row.abby_id, kind: row.kind, name: row.name,
-    emails: row.emails, commercialName: row.commercial_name, active: row.active
+    emails: row.emails, commercialName: row.commercial_name, billingAddress: row.billing_address, active: row.active
   }
 }
 

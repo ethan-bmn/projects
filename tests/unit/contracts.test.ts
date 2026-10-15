@@ -12,7 +12,7 @@ const fonts = {
   regular: (await readFile(new URL('../../public/fonts/pdf/PublicSans-Regular.ttf', import.meta.url))).toString('base64'),
   bold: (await readFile(new URL('../../public/fonts/pdf/PublicSans-Bold.ttf', import.meta.url))).toString('base64')
 }
-const client = { id: 'client', abbyId: 'abby', kind: 'organization' as const, name: 'Atelier Éloïse', emails: ['client@example.test'], commercialName: null, active: true }
+const client = { id: 'client', abbyId: 'abby', kind: 'organization' as const, name: 'Atelier Éloïse', emails: ['client@example.test'], commercialName: null, billingAddress: null, active: true }
 
 async function detail(): Promise<ProjectDetail> {
   const contract = createContract(client)
@@ -28,6 +28,11 @@ async function detail(): Promise<ProjectDetail> {
 }
 
 describe('project contracts', () => {
+  it('prefills the complete billing address including complement, postal code, and country', () => {
+    const contract = createContract({ ...client, billingAddress: { address: '12 rue du Test', complement: 'Étage 2', city: 'Lyon', zipCode: '69003', state: null, country: 'FR' } })
+    expect(filledContractSections(contract)[0]!.body).toContain('12 rue du Test\nÉtage 2\n69003 Lyon\nFR')
+  })
+
   it('keeps repeated placeholders independent for the client, infrastructure provider, and signatures', () => {
     const contract = createContract(client)
     const section = contractSections.find(section => section.title.startsWith('A.1'))!

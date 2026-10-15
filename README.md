@@ -6,6 +6,8 @@ See [the project design](docs/project-design.md) for the data model, access cont
 
 Each project can store one contract. Apply migration `008_project_contract.sql` with `bun run db:migrate`, then open a project and choose **Créer le contrat**. The editor uses the wording from `CONTRACT_TEMPLATE.pdf`, prefills the client's name and email, and provides the remaining template fields with clause previews. Drafts can be saved before all fields are complete. Enable annex B when needed and upload the accepted quote as a PDF (maximum 5 MiB). Once all active template fields are filled and a quote is attached, export the contract: jsPDF renders it using the specification PDF's Public Sans fonts and purple page styling; pdf-lib appends every original quote page, preserving its dimensions. Password-protected or unreadable quote PDFs must be exported as readable PDFs before upload. Contracts and quote attachments are stored locally with the project and are preserved when specifications or Abby client details change.
 
+Migration `009_client_billing_address.sql` adds a structured `billing_address` column to `clients`. Synchronization imports Abby's billing address for both organizations and individual contacts, including the street, complement, postal code, city, state, and country. New contracts prefill the address from this local record; saved contracts keep their original values when a client moves. The migration makes the next automatic import due so existing clients receive their addresses.
+
 ## Starter Template
 
 [![Nuxt UI](https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?logo=nuxt&labelColor=020420)](https://ui.nuxt.com)

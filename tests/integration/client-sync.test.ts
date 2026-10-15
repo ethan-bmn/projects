@@ -5,11 +5,14 @@ import { AbbySyncError, fetchAbbyClients } from '../../server/services/abby-clie
 import type { AbbyClient } from '../../server/services/abby-client'
 import { syncClients } from '../../server/services/client-sync'
 import { createTestDatabase } from '../helpers/database'
+import { getClientProjects, createProject, getProject } from '../../server/services/projects'
+import { projectInput } from '../helpers/projects'
+import { createContract } from '../../shared/utils/contracts'
 
 const database = await createTestDatabase()
 afterAll(database.cleanup)
 const config = { apiKey: 'test-only-key', baseUrl: 'https://api.app-abby.com' }
-const item: AbbyClient = { id: 'abby-1', kind: 'organization', name: 'Dupont SARL', emails: ['info@example.test'], commercialName: null }
+const item: AbbyClient = { id: 'abby-1', kind: 'organization', name: 'Dupont SARL', emails: ['info@example.test'], commercialName: null, billingAddress: null }
 
 beforeEach(async () => {
   await database.sql`TRUNCATE projects, clients`
@@ -17,6 +20,24 @@ beforeEach(async () => {
 })
 
 describe('persisted client synchronization', () => {
+  it('stores, updates, and clears addresses while preserving saved contracts', async () => {
+    const address = { address: '12 rue du Test', complement: 'Étage 2', zipCode: '69003', city: 'Lyon', state: null, country: 'FR' }
+    await syncClients(database.sql, config, { fetchClients: async () => [{ ...item, billingAddress: address }] })
+    const [row] = await database.sql`SELECT id, billing_address FROM clients`
+    expect(row!.billing_address).toEqual(address)
+    const detail = await getClientProjects(database.sql, row!.id)
+    expect(detail.client.billingAddress).toEqual(address)
+    const contract = createContract(detail.client)
+    const project = await createProject(database.sql, row!.id, { ...projectInput(), contract })
+    const moved = { ...address, city: 'Paris', zipCode: '75001' }
+    await syncClients(database.sql, config, { fetchClients: async () => [{ ...item, billingAddress: moved }] })
+    const updated = await getProject(database.sql, row!.id, project.id)
+    expect(updated.client.billingAddress).toEqual(moved)
+    expect(updated.project.contract).toEqual(contract)
+    await syncClients(database.sql, config, { fetchClients: async () => [item] })
+    expect((await getClientProjects(database.sql, row!.id)).client.billingAddress).toBeNull()
+  })
+
   it('updates clients without duplicating them or changing their local ID', async () => {
     await syncClients(database.sql, config, { fetchClients: async () => [item] })
     const [first] = await database.sql`SELECT * FROM clients`
@@ -78,7 +99,7 @@ describe('persisted client synchronization', () => {
     const fetchClients = (linked: boolean) => {
       const request = vi.fn<typeof fetch>()
         .mockResolvedValueOnce(Response.json({ docs: linked ? [{ id: 'org-1', name: 'Company' }] : [], page: 1, hasNextPage: false }))
-        .mockResolvedValueOnce(Response.json({ docs: [{ id: 'person-1', fullname: 'Jean', organization: linked ? { id: 'org-1', name: 'Company' } : null }], page: 1, hasNextPage: false }))
+        .mockResolvedValueOnce(Response.json({ docs: [{ id: 'person-1', fullname: 'Jean', billingAddress: null, organization: linked ? { id: 'org-1', name: 'Company' } : null }], page: 1, hasNextPage: false }))
       return () => fetchAbbyClients(config, request)
     }
     await syncClients(database.sql, config, { fetchClients: fetchClients(false) })
