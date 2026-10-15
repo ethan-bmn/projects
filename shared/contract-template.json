@@ -1,0 +1,110 @@
+[
+  {
+    "title": "Entre les parties",
+    "body": "Le Prestataire : Ethan BAUMANN, entrepreneur individuel (EI), SIREN 130 584 659, 248 rue André Philip 69003 Lyon, e-mail contact@ethanbaumann.fr, téléphone +33667739428, ci-après « le Prestataire ». \nLe Client : [NOM / DÉNOMINATION], [FORME JURIDIQUE / SIREN LE CAS ÉCHÉANT], adresse [ADRESSE], représenté par [NOM / QUALITÉ LE CAS ÉCHÉANT], e-mail [EMAIL], ci-après « le Client ». \nLe Prestataire et le Client sont ci-après désignés ensemble « les Parties »."
+  },
+  {
+    "title": "Préambule - Documents contractuels",
+    "body": "Le présent contrat encadre les prestations expressément commandées par le Client. Font partie intégrante du contrat : (1) le devis accepté n° [RÉFÉRENCE] du [DATE] ; (2) le cahier des charges et les éventuels livrables annexés ; (3) l’annexe A - niveaux de service et sauvegardes ; (4) le cas échéant, l’annexe B - traitement des données personnelles. En cas de contradiction, l’ordre de priorité est : avenant signé, devis et conditions particulières, annexe B pour les traitements de données, présent contrat, autres annexes, cahier des charges ; sous réserve des dispositions impératives applicables."
+  },
+  {
+    "title": "Article 1 - Objet et périmètre",
+    "body": "Le Prestataire peut fournir, selon le devis : audit, conception, développement, intégration, déploiement, hébergement, administration technique, maintenance corrective ou évolutive, sauvegardes et assistance. Aucune prestation n’est incluse du seul fait qu’elle est mentionnée dans le présent modèle : seules celles retenues dans le devis et ses annexes sont dues. \nLe Client fournit les contenus, accès, validations et informations nécessaires. Les prestations hors périmètre font l’objet d’un devis ou avenant distinct, accepté préalablement."
+  },
+  {
+    "title": "Article 2 - Exécution, calendrier et recette",
+    "body": "Le calendrier, les jalons et les livrables sont indiqués au devis. Les délais peuvent être adaptés d’un commun accord en cas de retard d’informations, de validations ou d’un changement de périmètre demandé par le Client. Le Prestataire informe le Client des incidences prévisibles. \nUne version livrable est communiquée au Client pour vérification. Le Client dispose de [X JOURS OUVRÉS] pour notifier par écrit les non-conformités précises au périmètre convenu. Le Prestataire corrige les non-conformités imputables à sa prestation dans un délai raisonnable. L’absence de réponse ne vaut acceptation tacite que dans les limites autorisées par la loi et si la procédure a été expressément convenue. Une validation écrite ou un procès-verbal de recette peut être établi."
+  },
+  {
+    "title": "Article 3 - Prix, facturation et paiement",
+    "body": "Prix, échéancier, frais récurrents et modalités de règlement : voir devis. Toute prestation supplémentaire requiert un accord écrit préalable sur son coût et, si nécessaire, le délai associé. Mention TVA à adapter au régime effectif du Prestataire (par exemple « TVA non applicable, art. 293 B du CGI » uniquement si applicable). \nPour les clients professionnels : les pénalités de retard, l’indemnité forfaitaire de recouvrement de 40 € lorsqu’elle est applicable et les conditions de paiement figurent dans le devis et/ou sur les factures conformément aux règles en vigueur. Pour les consommateurs, les règles impératives applicables priment."
+  },
+  {
+    "title": "Article 4 - Hébergement et infrastructure",
+    "body": "Si l’hébergement figure au devis, le Prestataire met à disposition et administre les moyens nécessaires à l’exploitation du service décrit en annexe A. Il peut recourir à un prestataire d’infrastructure tiers, en restant responsable de ses propres obligations contractuelles et légales. L’emplacement géographique des données, les fournisseurs éventuels et les dépendances techniques sont précisés en annexe A lorsque pertinent. \nLe Client conserve la responsabilité des contenus qu’il diffuse et s’engage à ne pas utiliser les services à des fins illicites ou contraires aux droits de tiers. Le Prestataire peut prendre des mesures proportionnées de protection en cas de menace avérée pour la sécurité, avec information du Client dès que raisonnablement possible."
+  },
+  {
+    "title": "Article 5 - Disponibilité et incidents",
+    "body": "Le niveau de disponibilité éventuellement garanti, sa méthode de calcul, la période de mesure, les exclusions et les recours en cas de non-respect sont exclusivement ceux définis en annexe A. En l’absence d’un engagement chiffré expressément souscrit, le Prestataire s’engage à mettre en œuvre des moyens raisonnables pour assurer la continuité du service, sans garantir une disponibilité ininterrompue. \nLes interruptions peuvent provenir de maintenances programmées, d’incidents du réseau ou de fournisseurs tiers, de défaillances matérielles, de force majeure ou de faits imputables au Client. Les exclusions à un éventuel SLA doivent être précisées et ne sauraient supprimer les obligations légales impératives du Prestataire. \nLes incidents sont signalés à [EMAIL / PORTAIL], selon les plages et délais de prise en charge définis en annexe A. Un délai de prise en charge ne constitue pas nécessairement un délai de résolution."
+  },
+  {
+    "title": "Article 6 - Sécurité et maintenance",
+    "body": "Le Prestataire met en œuvre des mesures techniques et organisationnelles proportionnées aux risques et au périmètre souscrit : contrôle des accès et des privilèges, authentification adaptée, gestion des secrets, chiffrement des communications lorsque pertinent, mises à jour de sécurité, journalisation ou supervision utile, cloisonnement des environnements et procédures de restauration. \nAucun système n’étant exempt de vulnérabilité, le Prestataire ne garantit ni une absence totale d’incident ni une protection absolue. Il corrige ou atténue les vulnérabilités relevant de son périmètre dans un délai adapté à leur criticité, aux dépendances et à l’existence de correctifs. \nLa maintenance inclut uniquement les composants listés au devis ou en annexe A. Les mises à jour fonctionnelles, modifications de contenu, interventions sur des composants tiers ou développements nouveaux ne sont pas inclus sauf disposition contraire. Les interventions planifiées susceptibles de perturber le service font l’objet d’une information préalable lorsque possible."
+  },
+  {
+    "title": "Article 7 - Sauvegardes automatiques tournantes",
+    "body": "Lorsque l’option est souscrite, le Prestataire organise des sauvegardes automatisées selon les paramètres de l’annexe A : éléments couverts, fréquence, durée de conservation, nombre de versions, emplacement et modalités de restauration. \nLe principe des sauvegardes tournantes est le suivant : les copies sont conservées selon une politique de rétention et les plus anciennes sont automatiquement supprimées ou remplacées lorsque leur durée de conservation ou leur nombre maximal est atteint. Il ne s’agit pas d’un archivage perpétuel. \nLa fréquence d’exécution des sauvegardes n’équivaut pas à une garantie que chaque exécution réussira. Des contrôles et tests de restauration sont effectués selon l’annexe A. Le Prestataire informe le Client des échecs significatifs détectés et applique les mesures correctives raisonnablement possibles. \nLes objectifs de perte de données maximale (RPO) et de délai de reprise (RTO) ne sont garantis que s’ils figurent expressément à l’annexe A. Une restauration peut entraîner la perte des modifications intervenues depuis le point de sauvegarde retenu. Les demandes de restauration sont traitées selon les conditions et éventuels coûts indiqués au devis ou en annexe A. \nLe Client reste invité à conserver, lorsque cela est nécessaire à son activité, des exports indépendants de ses contenus et données. Cette recommandation ne décharge pas le Prestataire de ses engagements souscrits."
+  },
+  {
+    "title": "Article 8 - Données personnelles et confidentialité",
+    "body": "Chaque Partie s’engage à préserver la confidentialité des informations non publiques obtenues pour l’exécution du contrat, sauf obligation légale de divulgation ou accord préalable. Les obligations survivent pendant [X ANNÉES] après la fin du contrat, sous réserve des règles applicables aux secrets protégés. \nLorsque le Prestataire traite des données personnelles pour le compte du Client (par exemple données d’utilisateurs hébergées ou sauvegardées), les Parties identifient leurs rôles au sens du RGPD et concluent, avant le traitement, une annexe conforme aux exigences de l’article 28 du RGPD. Cette annexe décrit notamment les instructions documentées, finalités, catégories de données, personnes concernées, sous-traitants ultérieurs, mesures de sécurité, assistance, violations, durée et sort des données. \nLe Prestataire informe le Client, sans délai indu après en avoir pris connaissance, des violations de données personnelles dont la notification lui incombe en qualité de sous-traitant, selon les modalités de l’annexe B. La répartition des responsabilités et les éventuels transferts hors EEE doivent être documentés."
+  },
+  {
+    "title": "Article 9 - Propriété intellectuelle et licences",
+    "body": "Les éléments préexistants, bibliothèques tierces et outils du Prestataire demeurent régis par leurs droits et licences respectifs. Les droits cédés sur les créations réalisées spécifiquement pour le Client sont détaillés dans le devis ou une annexe de cession indiquant, lorsque nécessaire, les droits concernés, leur destination, le territoire, la durée et la rémunération. En l’absence de cession valable, une licence d’utilisation adaptée à l’objet du contrat doit être définie. \nLe Client garantit disposer des droits nécessaires sur les contenus, marques, images, textes et données transmis. Les composants open source restent soumis à leurs licences applicables."
+  },
+  {
+    "title": "Article 10 - Noms de domaine et services tiers",
+    "body": "Pour les noms de domaine, le devis précise qui est titulaire, gestionnaire et payeur, ainsi que les modalités de renouvellement, de transfert et de remise des accès. Sauf convention contraire explicite, le Client doit être désigné titulaire de ses noms de domaine. Le Prestataire ne peut garantir la disponibilité future d’un nom de domaine ni les conditions de services tiers."
+  },
+  {
+    "title": "Article 11 - Durée, renouvellement et résiliation",
+    "body": "La prestation ponctuelle prend fin après exécution des obligations correspondantes. Les services récurrents d’hébergement et de maintenance sont souscrits pour [DURÉE], à compter du [DATE], avec [RENOUVELLEMENT / SANS RENOUVELLEMENT] et modalités de résiliation [PRÉAVIS ET CANAL]. Les dispositions spécifiques aux consommateurs, notamment relatives à la reconduction et à la résiliation, restent applicables. \nEn cas de manquement grave, la résiliation peut intervenir selon une procédure de mise en demeure et un délai de régularisation de [X JOURS], sauf urgence justifiée ou règles impératives contraires. Une suspension pour impayé ou risque de sécurité doit être proportionnée et précédée d’une information lorsque possible. \nÀ la fin du contrat, les conditions de réversibilité s’appliquent : export des données dans [FORMAT], remise éventuelle des accès et livrables prévus, assistance au transfert [INCLUSE / FACTURÉE], délai de récupération [X JOURS], puis suppression des copies selon les échéances documentées, sous réserve des obligations légales de conservation."
+  },
+  {
+    "title": "Article 12 - Responsabilité et assurances",
+    "body": "Chaque Partie répond des dommages résultant de ses manquements selon le droit applicable. Les éventuels plafonds d’indemnisation, exclusions de préjudice et limites liées aux services tiers doivent être déterminés de façon claire, proportionnée et compatible avec les règles impératives, notamment celles protégeant les consommateurs, et ne peuvent vider l’obligation essentielle de sa substance. \nLe Prestataire indique, le cas échéant, les références de son assurance responsabilité civile professionnelle : [ASSUREUR / POLICE / COUVERTURE]. Aucune clause ne saurait exclure une responsabilité que la loi interdit de limiter."
+  },
+  {
+    "title": "Article 13 - Force majeure",
+    "body": "Les conséquences d’un événement répondant à la définition légale de la force majeure sont régies par l’article 1218 du Code civil. La Partie empêchée informe l’autre dans les meilleurs délais et prend les mesures raisonnables pour limiter les effets de l’empêchement."
+  },
+  {
+    "title": "Article 14 - Réclamations et litiges",
+    "body": "Toute réclamation est adressée en priorité à [EMAIL ET ADRESSE POSTALE]. Les Parties recherchent une solution amiable avant toute procédure, sans priver quiconque de ses recours légaux. Pour les clients consommateurs, indiquer le médiateur de la consommation compétent et ses coordonnées : [À RENSEIGNER APRÈS ADHÉSION]. Les règles impératives de compétence juridictionnelle s’appliquent ; ne pas imposer de juridiction exclusive à un consommateur."
+  },
+  {
+    "title": "Article 15 - Acceptation",
+    "body": "Les Parties déclarent avoir pris connaissance du contrat et de ses annexes, et accepter expressément les prestations et conditions particulières figurant au devis. Signé à [VILLE], le [DATE], en [NOMBRE] exemplaires ou par procédé de signature électronique accepté. \nLe Prestataire : [NOM / SIGNATURE]     Le Client : [NOM / SIGNATURE]"
+  },
+  {
+    "title": "ANNEXE A - FICHE DE SERVICE, DISPONIBILITÉ ET SAUVEGARDES",
+    "body": ""
+  },
+  {
+    "title": "A.1 Identification du service",
+    "body": "Client : [NOM] | Service / domaine : [URL] | Environnement : [PROD / AUTRE] | Date d’activation : [DATE] | Fournisseur d’infrastructure : [NOM] | Région d’hébergement : [PAYS / RÉGION] | Contact incident : [EMAIL]."
+  },
+  {
+    "title": "A.2 Offre et périmètre",
+    "body": "Services inclus : [HÉBERGEMENT, DNS, CERTIFICAT TLS, BASE DE DONNÉES, MAINTENANCE, MONITORING, SAUVEGARDES…]. Exclusions : [EMAIL, DNS EXTERNE, CONTENUS, PLUGINS TIERS, ETC.]. Plages de support : [JOURS / HEURES / FUSEAU]."
+  },
+  {
+    "title": "A.3 Disponibilité (SLA optionnel)",
+    "body": "Disponibilité mensuelle garantie : [AUCUNE VALEUR CONTRACTUELLE / XX,X %]. Si un SLA est retenu : disponibilité = (minutes éligibles – minutes d’indisponibilité imputables au périmètre garanti) / minutes éligibles × 100. Source de mesure : [SONDE / OUTIL / FRÉQUENCE]. Période : [MOIS CIVIL, FUSEAU]. Exclusions précises : [MAINTENANCE NOTIFIÉE, ÉVÉNEMENTS DÉFINIS…]. Compensation/remède : [À DÉFINIR]. Ne pas annoncer 99,9 % sans capacité réelle de mesure et de tenue de cet engagement."
+  },
+  {
+    "title": "A.4 Maintenance et incidents",
+    "body": "Fenêtre de maintenance : [JOUR / HEURE / PRÉAVIS]. Criticité : [P1 SITE INDISPONIBLE ; P2 DÉGRADATION ; P3 DEMANDE MINEURE]. Prise en charge cible : [P1 X H ; P2 X J ; P3 X J] pendant [PLAGE SUPPORT]. Résolution : [OBJECTIF OU MEILLEURS EFFORTS]. Canal : [EMAIL / TICKET]."
+  },
+  {
+    "title": "A.5 Sécurité",
+    "body": "Mesures effectivement appliquées : [TLS, PARE-FEU, CONTRÔLE D’ACCÈS, MFA, MISES À JOUR, SUPERVISION, ISOLATION, RESTRICTIONS SSH, JOURNAUX]. Gestion des correctifs critiques : [PROCÉDURE / DÉLAI CIBLE]. Responsabilités du Client : [COMPTES, MOTS DE PASSE, CONTENUS, VALIDATIONS]."
+  },
+  {
+    "title": "A.6 Sauvegardes tournantes",
+    "body": "Données incluses : [FICHIERS, BASE DE DONNÉES, CONFIGURATION]. Données exclues : [CACHE, LOGS, EMAIL, FICHIERS EXTERNES…]. Fréquence : [TOUTES LES X HEURES / JOUR]. Type : [COMPLÈTE / INCRÉMENTALE / SNAPSHOT]. Politique de rétention : [EX. 7 QUOTIDIENNES + 4 HEBDOMADAIRES + 3 MENSUELLES - À ADAPTER AUX CAPACITÉS RÉELLES]. \nDestination : [HORS SERVEUR PRINCIPAL ? FOURNISSEUR / RÉGION]. Chiffrement : [EN TRANSIT / AU REPOS]. Contrôles d’exécution : [ALERTES / REVUE]. Test de restauration : [FRÉQUENCE]. Effacement des versions expirées : automatique selon politique. RPO : [OBJECTIF / NON GARANTI]. RTO : [OBJECTIF / NON GARANTI]. Coût et délai de restauration demandée : [CONDITIONS]."
+  },
+  {
+    "title": "A.7 Réversibilité et fin de service",
+    "body": "Exports remis : [FORMAT / CONTENU]. Délai de demande d’export : [X JOURS APRÈS FIN]. Conservation opérationnelle après fin : [X JOURS]. Suppression des sauvegardes \nrésiduelles : [DÉLAI MAXIMAL TENANT COMPTE DE LA ROTATION ET DES EXIGENCES LÉGALES]. Assistance à la migration : [CONDITIONS]."
+  },
+  {
+    "title": "A.8 Hébergement offert ou « à vie » (option, ne retenir que si explicitement vendu)",
+    "body": "Si un hébergement est offert, préciser séparément son prix (0 €), sa durée exacte, ce qui reste inclus, les conditions de modification et la réversibilité. Éviter la formule non définie « à vie » : préciser l’événement mettant fin à l’engagement, le sort du service si l’activité cesse et les obligations impératives applicables. Toute gratuité ne supprime pas les obligations légales de sécurité et de bonne exécution."
+  },
+  {
+    "title": "ANNEXE B - ACCORD DE TRAITEMENT DES DONNÉES (À COMPLÉTER SI APPLICABLE)",
+    "body": "Responsable de traitement : [CLIENT OU AUTRE SELON RÔLES]. Sous-traitant : [PRESTATAIRE]. Objet, nature et finalités : [DÉTAILS]. Durée : [DURÉE]. Catégories de personnes : [VISITEURS, CLIENTS, UTILISATEURS…]. Types de données : [IDENTIFIANTS, CONTACTS, JOURNAUX, ETC.]. Instructions documentées : [DESCRIPTION / RÉFÉRENCE]. \nObligations à détailler avant signature : confidentialité des personnes habilitées ; sécurité adaptée ; autorisation et information concernant les sous-traitants ultérieurs (liste et procédure d’opposition) ; assistance pour les droits des personnes, analyses d’impact et notifications ; information des violations ; audits et mise à disposition d’informations ; suppression/restitution au terme de la mission ; mécanismes pour transferts internationaux éventuels. Compléter avec une annexe article 28 RGPD juridiquement adaptée avant tout traitement concerné."
+  }
+]

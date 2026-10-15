@@ -4,6 +4,7 @@ import { syncClients } from '../../server/services/client-sync'
 import { createTestDatabase } from '../helpers/database'
 import { projectInput } from '../helpers/projects'
 import { projectDiagrams } from '../helpers/diagrams'
+import { createContract } from '../../shared/utils/contracts'
 
 const database = await createTestDatabase()
 afterAll(database.cleanup)
@@ -21,6 +22,18 @@ beforeEach(async () => {
 })
 
 describe('customer projects', () => {
+  it('persists one contract per project and preserves it through specification edits and client synchronization', async () => {
+    const created = await createProject(database.sql, businessId, projectInput())
+    const detail = await getProject(database.sql, businessId, created.id)
+    const contract = createContract(detail.client)
+    await updateProject(database.sql, businessId, created.id, { ...projectInput(), contract })
+    expect((await getProject(database.sql, businessId, created.id)).project.contract).toEqual(contract)
+    const updated = await updateProject(database.sql, businessId, created.id, projectInput('Nouveau cahier des charges'))
+    expect(updated.contract).toEqual(contract)
+    await expect(updateProject(database.sql, individualId, created.id, { ...projectInput(), contract })).rejects.toMatchObject({ statusCode: 404 })
+    expect((await updateProject(database.sql, businessId, created.id, { ...projectInput(), contract: null })).contract).toBeNull()
+  })
+
   it('stores diagrams, preserves them for older callers, and clears them explicitly', async () => {
     const input = { ...projectInput(), diagrams: projectDiagrams() }
     const created = await createProject(database.sql, businessId, input)

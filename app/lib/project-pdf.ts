@@ -283,7 +283,7 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
   return doc
 }
 
-async function loadFont(url: string) {
+export async function loadFont(url: string) {
   const response = await fetch(url)
   if (!response.ok) throw new Error('Police PDF indisponible')
   const bytes = new Uint8Array(await response.arrayBuffer())

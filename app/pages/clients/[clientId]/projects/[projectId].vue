@@ -3,6 +3,8 @@ import { projectSections } from '#shared/types/projects'
 import type { Project, ProjectDetail, ProjectInput } from '#shared/types/projects'
 import { databaseDrawing, wbsDrawing } from '#shared/utils/diagrams'
 import { projectSvgFilename } from '#shared/utils/project-filenames'
+import type { ProjectContract } from '#shared/types/contracts'
+import { contractMissingFields } from '#shared/utils/contracts'
 
 const route = useRoute()
 const clientId = String(route.params.clientId)
@@ -12,6 +14,11 @@ if (error.value || !data.value) throw createError({ statusCode: error.value?.sta
 useSeoMeta({ title: () => `${data.value?.project.name} | Abby Projects` })
 
 const editing = ref(false)
+const editingContract = ref(false)
+const contractEditor = useTemplateRef<{ markSaved: () => void }>('contractEditor')
+const contractError = ref('')
+const exportingContract = ref(false)
+const contractComplete = computed(() => !!data.value?.project.contract?.quote && contractMissingFields(data.value.project.contract).length === 0)
 const pending = ref(false)
 const saveError = ref('')
 const exporting = ref(false)
@@ -21,6 +28,38 @@ const config = useRuntimeConfig()
 const editor = useTemplateRef<{ markSaved: () => void }>('editor')
 const dbDrawing = computed(() => data.value?.project.diagrams?.database ? databaseDrawing(data.value.project.diagrams.database) : null)
 const planningDrawing = computed(() => data.value?.project.diagrams?.wbs.length ? wbsDrawing(data.value.project.diagrams.wbs) : null)
+
+async function saveContract(contract: ProjectContract) {
+  if (pending.value || !data.value) return
+  pending.value = true
+  contractError.value = ''
+  try {
+    const project = await $fetch<Project>(`/api/clients/${clientId}/projects/${projectId}`, {
+      method: 'PUT', body: { name: data.value.project.name, specification: data.value.project.specification, contract }
+    })
+    contractEditor.value?.markSaved()
+    data.value.project = project
+    editingContract.value = false
+  } catch (cause) {
+    contractError.value = (cause as { data?: { message?: string } }).data?.message || 'Impossible d’enregistrer le contrat.'
+  } finally {
+    pending.value = false
+  }
+}
+
+async function exportContract() {
+  if (exportingContract.value || !data.value) return
+  exportingContract.value = true
+  contractError.value = ''
+  try {
+    const { downloadContractPdf } = await import('~/lib/contract-pdf')
+    await downloadContractPdf(data.value, config.app.baseURL)
+  } catch (cause) {
+    contractError.value = cause instanceof Error ? cause.message : 'Impossible de générer le contrat PDF.'
+  } finally {
+    exportingContract.value = false
+  }
+}
 
 async function exportDatabaseSvg() {
   if (exportingSvg.value || !data.value) return
@@ -86,7 +125,7 @@ async function save(input: ProjectInput) {
         {{ editing ? 'Modifier le projet' : data.project.name }}
       </h1>
       <div
-        v-if="!editing"
+        v-if="!editing && !editingContract"
         class="flex flex-wrap gap-2"
       >
         <UButton
@@ -117,6 +156,59 @@ async function save(input: ProjectInput) {
     >
       Ce client est inactif dans Abby. Le projet est conservé.
     </p>
+
+    <section
+      v-if="!editing"
+      class="mt-6 space-y-4 border-y border-default py-5"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h2 class="text-lg font-semibold text-highlighted">
+          Contrat
+        </h2>
+        <div
+          v-if="!editingContract"
+          class="flex flex-wrap gap-2"
+        >
+          <UButton
+            :label="data.project.contract ? 'Modifier le contrat' : 'Créer le contrat'"
+            color="neutral"
+            variant="outline"
+            @click="editingContract = true; contractError = ''"
+          />
+          <UButton
+            v-if="data.project.contract"
+            label="Exporter le contrat PDF"
+            icon="i-lucide-download"
+            :disabled="!contractComplete"
+            :loading="exportingContract"
+            @click="exportContract"
+          />
+        </div>
+      </div>
+      <p
+        v-if="!editingContract"
+        class="text-sm text-muted"
+      >
+        {{ !data.project.contract ? 'Aucun contrat associé à ce projet.' : contractComplete ? `Contrat prêt à exporter. Devis joint : ${data.project.contract.quote?.name}` : 'Brouillon : complétez les champs et joignez le devis pour exporter.' }}
+      </p>
+      <p
+        v-if="contractError && !editingContract"
+        role="alert"
+        class="text-sm text-error"
+      >
+        {{ contractError }}
+      </p>
+      <ContractEditor
+        v-if="editingContract"
+        ref="contractEditor"
+        :client="data.client"
+        :initial="data.project.contract"
+        :pending="pending"
+        :error="contractError"
+        @submit="saveContract"
+        @cancel="editingContract = false"
+      />
+    </section>
 
     <ProjectEditor
       v-if="editing"

@@ -22,6 +22,7 @@
     "jspdf": "^4.2.1",
     "nuxt": "^4.6.0",
     "nuxt-auth-utils": "^0.5.31",
+    "pdf-lib": "^1.17.1",
     "postgres": "^3.4.9",
     "tailwindcss": "^4.3.3"
   },
