@@ -3,7 +3,7 @@ import { onBeforeRouteLeave } from 'vue-router'
 import type { Client } from '#shared/types/clients'
 import type { ProjectContract } from '#shared/types/contracts'
 import { contractExportIssues, contractSections, filledContractSections, upgradeContract } from '#shared/utils/contracts'
-import { activeContractVariables, contractChoices, contractConfirmations, contractGroups, dataProcessing } from '#shared/utils/contract-configuration'
+import { activeContractVariables, clientCodeOwnershipClause, contractChoices, contractConfirmations, contractGroups, dataProcessing } from '#shared/utils/contract-configuration'
 import { syncContractReference } from '#shared/utils/contract-reference'
 
 const props = defineProps<{ client: Client, initial?: ProjectContract | null, pending: boolean, error: string }>()
@@ -22,7 +22,7 @@ const groups = computed(() => contractGroups.map((label, index) => ({
   id: index, label,
   choices: contractChoices.filter(field => field.group === index && (!field.when || field.when(configuration))),
   variables: activeContractVariables(configuration).filter(field => field.group === index)
-})).filter(group => group.choices.length || group.variables.length || group.id === 8))
+})).filter(group => group.choices.length || group.variables.length || group.id === 2 || group.id === 8))
 const confirmations = computed(() => contractConfirmations.filter(field => !field.when || field.when(configuration)))
 const legacyValues = computed(() => Object.entries(form.fields).filter(([key, value]) => /^\d+\.\d+$/.test(key) && value.trim()))
 const legacyLabels = Object.fromEntries(contractSections.flatMap(section => section.fields.map(field => [field.key, `${section.title} — ${field.label}`])))
@@ -184,6 +184,12 @@ async function readQuoteMetadata(bytes?: Uint8Array, replacing = false) {
       <legend class="pt-4 text-lg font-semibold text-highlighted">
         {{ group.label }}
       </legend>
+      <p
+        v-if="group.id === 2"
+        class="text-sm leading-6 text-muted"
+      >
+        {{ clientCodeOwnershipClause }}
+      </p>
       <UFormField
         v-for="field in group.choices"
         :key="field.key"

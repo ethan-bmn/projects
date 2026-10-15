@@ -2,7 +2,7 @@ import template from '../contract-template.json'
 import type { Client } from '../types/clients'
 import type { ContractConfiguration, ProjectContract } from '../types/contracts'
 import { formatClientAddress } from './client-address'
-import { activeContractVariables, backups, choice, contractChoices, contractConfirmations, contractVariables, dataProcessing, defaultConfiguration, development, hasService, hosting, selected, support } from './contract-configuration'
+import { activeContractVariables, backups, choice, contractChoices, contractConfirmations, contractVariables, dataProcessing, defaultConfiguration, hasService, hosting, selected, support } from './contract-configuration'
 import { configuredContractSections } from './contract-document'
 import type { ContractDocumentSection } from './contract-document'
 import { syncContractReference } from './contract-reference'
@@ -87,7 +87,6 @@ export function contractExportIssues(contract: ProjectContract): string[] {
     } else if (!choice(config, field.key)) issues.push(`Choisissez : ${field.label}.`)
   }
   if (choice(config, 'rgpd.sous_traitance') === 'A_QUALIFIER') issues.push('Qualifiez le traitement des données personnelles avant l’export.')
-  if (development(config) && choice(config, 'droits.mode') === 'A_DEFINIR') issues.push('Définissez la licence ou la cession des droits avant l’export.')
   if (hosting(config) && choice(config, 'hebergement.mode') === 'NON_INCLUS') issues.push('Le service Hébergement est sélectionné mais son offre est « Non inclus ».')
   if (support(config) && choice(config, 'support.mode') === 'SANS_SUPPORT') issues.push('Le service Support est sélectionné mais ses plages sont « Sans support ».')
   if (hasService(config, 'SAUVEGARDES') && !backups(config)) issues.push('Le service Sauvegardes est sélectionné mais son offre est « Absentes ».')

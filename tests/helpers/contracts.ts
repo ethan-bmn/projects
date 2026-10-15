@@ -35,7 +35,7 @@ export function auditContract() {
 export function fullContract() {
   const contract = auditContract()
   Object.assign(contract.configuration!.choices, {
-    'developpement.mode': 'FORFAIT', 'recette.active': 'OUI', 'droits.mode': 'LICENCE', 'source_code.livraison': 'OUI', 'garantie.active': 'OUI',
+    'developpement.mode': 'FORFAIT', 'recette.active': 'OUI', 'garantie.active': 'OUI',
     'hebergement.mode': 'PAYANT_RECURRENT', 'hebergement.periodicite': 'MENSUELLE', 'hebergement.infrastructure': 'VPS_MUTUALISE',
     'sla.mode': 'SLA_CHIFFRE', 'support.mode': 'HEURES_OUVREES', 'backups.mode': 'INCLUSES', 'backups.type': 'SNAPSHOTS',
     'backups.restauration': 'RESTAURATION_INCLUSE', 'contrat.duree.mode': 'DUREE_DETERMINEE', 'contrat.renouvellement': 'AUCUN',

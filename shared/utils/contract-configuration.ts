@@ -27,6 +27,8 @@ export const contractGroups = [
   'Durée, réversibilité et données personnelles', 'Vérifications avant export'
 ]
 
+export const clientCodeOwnershipClause = 'Tout le code produit dans le cadre du présent contrat est la propriété du Client. Le Client peut demander à tout moment la remise du code source, que le Prestataire s’engage à lui fournir.'
+
 export const choice = (config: ContractConfiguration, key: string) => config.choices[key] ?? ''
 export const selected = (config: ContractConfiguration, key: string) => config.selections[key] ?? []
 export const hasService = (config: ContractConfiguration, ...services: string[]) => services.some(service => selected(config, 'services').includes(service))
@@ -40,7 +42,6 @@ export const sla: Condition = config => hosting(config) && choice(config, 'sla.m
 export const consumer: Condition = config => choice(config, 'client.type') === 'CONSOMMATEUR'
 export const professional: Condition = config => ['PRO_ENTREPRISE', 'PRO_INDEPENDANT'].includes(choice(config, 'client.type'))
 export const dataProcessing: Condition = config => choice(config, 'rgpd.sous_traitance') === 'OUI'
-export const assignment: Condition = config => development(config) && choice(config, 'droits.mode') === 'CESSION_SPECIFIQUE'
 const recurring: Condition = config => ['DUREE_DETERMINEE', 'INDETERMINEE'].includes(choice(config, 'contrat.duree.mode'))
 const guaranteed = (key: string): Condition => config => backups(config) && choice(config, key) === 'GARANTI'
 
@@ -65,8 +66,6 @@ export const contractChoices: ContractChoice[] = [
   ]),
   single('developpement.mode', 'Mode de réalisation', 2, [['FORFAIT', 'Forfait'], ['REGIE', 'Régie'], ['MIXTE', 'Mixte']], development),
   single('recette.active', 'Procédure de recette', 2, yesNo, development),
-  single('droits.mode', 'Droits sur les créations', 2, [['LICENCE', 'Licence d’utilisation'], ['CESSION_SPECIFIQUE', 'Cession spécifique avec annexe'], ['A_DEFINIR', 'À définir']], development, 'A_DEFINIR'),
-  single('source_code.livraison', 'Livraison du code source', 2, yesNo, development),
   single('garantie.active', 'Maintenance corrective incluse après livraison', 2, yesNo, development),
   single('hebergement.mode', 'Offre d’hébergement', 3, [['NON_INCLUS', 'Non inclus'], ['PAYANT_RECURRENT', 'Payant récurrent'], ['OFFERT_DUREE_DEFINIE', 'Offert pour une durée définie'], ['INCLUS_DANS_FORFAIT', 'Inclus dans le forfait']], hosting, 'NON_INCLUS'),
   single('hebergement.periodicite', 'Périodicité de facturation', 3, [['MENSUELLE', 'Mensuelle'], ['ANNUELLE', 'Annuelle'], ['AUTRE', 'Autre']], config => hosting(config) && choice(config, 'hebergement.mode') === 'PAYANT_RECURRENT'),
@@ -108,8 +107,6 @@ export const contractVariables: ContractVariable[] = [
   variable('perimetre', 'Périmètre et livrables convenus au devis', 1),
   variable('domaine.conditions', 'Titulaire, gestionnaire, payeur, renouvellement, transfert et remise des accès', 1, 'textarea', config => hasService(config, 'DNS', 'NOM_DE_DOMAINE')),
   variable('recette.delai', 'Délai de recette en jours ouvrés', 2, 'number', config => development(config) && choice(config, 'recette.active') === 'OUI', '3.0'),
-  variable('droits.licence', 'Droits d’utilisation : destination, territoire, durée et rémunération', 2, 'textarea', config => development(config) && choice(config, 'droits.mode') === 'LICENCE'),
-  variable('droits.cession', 'Annexe de cession : droits cédés, destination, territoire, durée et rémunération', 2, 'textarea', assignment),
   variable('garantie.duree', 'Durée et périmètre de la maintenance après livraison', 2, 'text', config => development(config) && choice(config, 'garantie.active') === 'OUI'),
   variable('prix.conditions', 'Prix, TVA, échéancier et conditions de paiement convenus au devis', 3),
   variable('hebergement.duree', 'Durée de l’hébergement', 3, 'text', hosting),
@@ -190,7 +187,6 @@ export const contractConfirmations = [
   { key: 'prix', label: 'Prix et durée vérifiés' },
   { key: 'coherence', label: 'Options, engagements et annexes cohérents avec le devis' },
   { key: 'consommateur', label: 'Informations, rétractation, médiation, renouvellement et résiliation du consommateur vérifiés', when: consumer },
-  { key: 'cession', label: 'Annexe de cession détaillée et validation juridique effectuées', when: assignment },
   { key: 'rgpd', label: 'Annexe de sous-traitance complétée et vérifiée avant traitement', when: dataProcessing }
 ]
 

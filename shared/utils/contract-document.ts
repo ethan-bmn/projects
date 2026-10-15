@@ -1,6 +1,6 @@
 import template from '../contract-template.json'
 import type { ProjectContract } from '../types/contracts'
-import { assignment, backups, choice, consumer, dataProcessing, development, hasService, hosting, maintenance, optionLabel, security, selected, sla, support } from './contract-configuration'
+import { backups, choice, clientCodeOwnershipClause, consumer, dataProcessing, development, hasService, hosting, maintenance, optionLabel, security, selected, sla, support } from './contract-configuration'
 
 export interface ContractDocumentSection {
   title: string
@@ -22,7 +22,6 @@ export function configuredContractSections(contract: ProjectContract): ContractD
   }
   const technicalAnnex = annex('technical', 'Fiche de service, disponibilité et sauvegardes', technical)
   const dataAnnex = annex('data', 'Accord de traitement des données personnelles', dataProcessing(config))
-  const rightsAnnex = annex('rights', 'Cession spécifique des droits', assignment(config))
   const sections: ContractDocumentSection[] = []
   const add = (title: string, body: string, signature = false) => sections.push({ title, body, signature })
   function original(index: number, replacements: string[] = []) {
@@ -30,8 +29,8 @@ export function configuredContractSections(contract: ProjectContract): ContractD
     return template[index]!.body.replace(/\[[^\]]+\]/g, () => replacements[field++] ?? '').replaceAll('annexe A', `annexe ${technicalAnnex}`).replaceAll('annexe B', `annexe ${dataAnnex}`)
   }
   const paragraphs = (index: number) => template[index]!.body.split(/\n/).filter(paragraph => paragraph.trim())
-  function article(index: number, body: string) {
-    add(template[index + 1]!.title, body)
+  function article(index: number, body: string, title = template[index + 1]!.title) {
+    add(title, body)
   }
 
   const identity = [value('client.nom'), label('client.type')]
@@ -48,7 +47,7 @@ export function configuredContractSections(contract: ProjectContract): ContractD
 
   let execution = paragraphs(3)[0]!
   if (development(config)) {
-    execution += `\nMode de réalisation : ${label('developpement.mode')}. Livraison du code source : ${label('source_code.livraison')}.`
+    execution += `\nMode de réalisation : ${label('developpement.mode')}.`
     if (choice(config, 'recette.active') === 'OUI') execution += `\n${original(3, [value('recette.delai')]).split('\n').slice(1).join('\n')}`
     if (choice(config, 'garantie.active') === 'OUI') execution += `\nMaintenance corrective incluse après livraison : ${value('garantie.duree')}.`
   }
@@ -82,11 +81,7 @@ export function configuredContractSections(contract: ProjectContract): ContractD
   let confidentiality = original(9, [value('confidentialite.duree')])
   if (!dataProcessing(config)) confidentiality = confidentiality.split('\n')[0]!
   article(8, confidentiality)
-  let rights = paragraphs(10)[0]!.split('Les droits cédés')[0]!.trim()
-  if (development(config) && choice(config, 'droits.mode') === 'LICENCE') rights += `\nLicence d’utilisation des créations spécifiques : ${value('droits.licence')}.`
-  if (assignment(config)) rights += `\nLes droits cédés sur les créations spécifiques sont exclusivement définis dans l’annexe ${rightsAnnex}, qui précise les droits, destination, territoire, durée et rémunération.`
-  rights += `\n${paragraphs(10)[1]}`
-  article(9, rights)
+  article(9, clientCodeOwnershipClause, 'Article 9 - Propriété intellectuelle et code source')
   if (hasService(config, 'DNS', 'NOM_DE_DOMAINE')) article(10, `${original(11)}\nConditions convenues : ${value('domaine.conditions')}.`)
   const duration = choice(config, 'contrat.duree.mode')
   let term = duration === 'PONCTUELLE'
@@ -131,7 +126,6 @@ export function configuredContractSections(contract: ProjectContract): ContractD
       ]
       sections[sections.length - 1]!.body = dataFields.map(([label, key]) => `${label} : ${value(`rgpd.${key}`)}`).join('\n')
     }
-    if (entry.name === 'rights') sections[sections.length - 1]!.body = value('droits.cession')
   }
   let articleNumber = 0
   return sections.map(section => ({ ...section, title: section.title.replace(/^Article \d+/, () => `Article ${++articleNumber}`) }))

@@ -92,16 +92,22 @@ describe('configured project contracts', () => {
     expect(validateContract(contract)!.includeDataProcessing).toBe(true)
   })
 
-  it('requires reviewed cession details and blocks undefined rights', () => {
+  it.each(['LICENCE', 'CESSION_SPECIFIQUE', 'A_DEFINIR'])('always gives the client the produced code and source access, overriding old option %s', (mode) => {
     const contract = fullContract()
-    contract.configuration!.choices['droits.mode'] = 'A_DEFINIR'
-    expect(contractExportIssues(contract).some(issue => issue.includes('Définissez la licence'))).toBe(true)
-    contract.configuration!.choices['droits.mode'] = 'CESSION_SPECIFIQUE'
-    completeContract(contract)
-    expect(written(contract)).toContain('Annexe C — Cession spécifique')
-    expect(written(contract)).toContain('l’annexe C')
+    contract.configuration!.choices['droits.mode'] = mode
+    contract.configuration!.choices['source_code.livraison'] = 'NON'
     contract.configuration!.confirmations.cession = false
-    expect(contractExportIssues(contract).some(issue => issue.includes('validation juridique'))).toBe(true)
+    contract.fields['droits.licence'] = '{{obsolete}}'
+    contract.fields['droits.cession'] = '{{obsolete}}'
+    expect(contractExportIssues(contract)).toEqual([])
+    const text = written(contract)
+    expect(text).toContain('Tout le code produit dans le cadre du présent contrat est la propriété du Client.')
+    expect(text).toContain('Le Client peut demander à tout moment la remise du code source, que le Prestataire s’engage à lui fournir.')
+    expect(text).not.toContain('Licence d’utilisation')
+    expect(text).not.toContain('Cession spécifique')
+    expect(text).not.toContain('Livraison du code source : Non')
+    expect(text).not.toContain('{{obsolete}}')
+    expect(written(validateContract(contract)!)).toBe(text)
   })
 
   it('requires conditional fields, a defined free-hosting term, and explicit guaranteed RPO/RTO', () => {
@@ -171,6 +177,8 @@ describe('configured project contracts', () => {
     expect(doc.output()).toContain('/FontFile2')
     const output = text.mock.calls.map(call => String(call[0])).join('\n')
     expect(output).toContain('C-2026-001')
+    expect(output.replace(/\s+/g, ' ')).toContain('Tout le code produit dans le cadre du présent contrat est la propriété du Client.')
+    expect(output.replace(/\s+/g, ' ')).toContain('Le Client peut demander à tout moment la remise du code source')
     expect(output).not.toContain('MODE GÉNÉRATEUR')
     expect(output).not.toMatch(/\{\{[^}]+\}\}|\[[^\]]+\]/)
     const result = await PDFDocument.load(await buildContractPdf(input, fonts))
