@@ -308,6 +308,16 @@ describe('owner authentication', () => {
       const html = await page.text()
       expect(html).toContain('Cahier des charges')
       expect(html).toContain('Exporter en PDF')
+      const contractPath = `/clients/${clientId}/projects/${first.id}/contract`
+      expect(html).toContain(`href="${contractPath}"`)
+      expect(html).not.toContain('Enregistrer le contrat')
+      const contractPage = await fetch(contractPath, { headers: { cookie } })
+      expect(contractPage.status).toBe(200)
+      const contractHtml = await contractPage.text()
+      expect(contractHtml).toContain('Enregistrer le contrat')
+      expect(contractHtml).toContain('Retour au projet')
+      expect((await fetch(`/clients/${otherId}/projects/${first.id}/contract`, { headers: { cookie } })).status).toBe(404)
+      expect((await fetch(contractPath, { redirect: 'manual' })).headers.get('location')).toBe('/auth')
       const anonymousPage = await fetch(`/clients/${clientId}/projects/new`, { redirect: 'manual' })
       expect(anonymousPage.headers.get('location')).toBe('/auth')
     } finally {
