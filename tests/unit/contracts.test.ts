@@ -73,6 +73,7 @@ describe('configured project contracts', () => {
     expect(contractExportIssues(contract)).toEqual([])
     expect(text).toContain('Médiateur de la consommation')
     expect(text).toContain('Vente à distance')
+    expect(text).toContain('Particulier')
     expect(text).not.toContain('40 €')
     expect(text).not.toContain('pénalités de retard')
     expect(text).not.toContain('SIREN : 123456789')
