@@ -53,6 +53,7 @@ async function save(contract: ProjectContract) {
       ref="editor"
       class="mt-6"
       :client="data.client"
+      :provider="data.provider"
       :initial="data.project.contract"
       :pending="pending"
       :error="saveError"

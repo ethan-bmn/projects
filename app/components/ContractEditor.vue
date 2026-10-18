@@ -2,13 +2,14 @@
 import { onBeforeRouteLeave } from 'vue-router'
 import type { Client } from '#shared/types/clients'
 import type { ProjectContract } from '#shared/types/contracts'
+import type { ProviderProfile } from '#shared/types/provider'
 import { contractExportIssues, contractSections, filledContractSections, upgradeContract } from '#shared/utils/contracts'
-import { activeContractVariables, clientCodeOwnershipClause, contractChoices, contractConfirmations, contractGroups, dataProcessing } from '#shared/utils/contract-configuration'
+import { activeContractVariables, clientCodeOwnershipClause, contractChoices, contractConfirmations, contractGroups, contractVariableLabel, dataProcessing } from '#shared/utils/contract-configuration'
 import { syncContractReference } from '#shared/utils/contract-reference'
 
-const props = defineProps<{ client: Client, initial?: ProjectContract | null, pending: boolean, error: string }>()
+const props = defineProps<{ client: Client, provider?: ProviderProfile, initial?: ProjectContract | null, pending: boolean, error: string }>()
 const emit = defineEmits<{ submit: [contract: ProjectContract], cancel: [] }>()
-const form = reactive<ProjectContract>(upgradeContract(props.initial ? toRaw(props.initial) : null, props.client))
+const form = reactive<ProjectContract>(upgradeContract(props.initial ? toRaw(props.initial) : null, props.client, props.provider))
 const configuration = form.configuration!
 const saved = ref(JSON.stringify(form))
 const dirty = computed(() => JSON.stringify(form) !== saved.value)
@@ -20,7 +21,7 @@ const issues = computed(() => contractExportIssues(form))
 const preview = computed(() => filledContractSections(form))
 const groups = computed(() => contractGroups.map((label, index) => ({
   id: index, label,
-  choices: contractChoices.filter(field => field.group === index && (!field.when || field.when(configuration))),
+  choices: contractChoices.filter(field => !field.hidden && field.group === index && (!field.when || field.when(configuration))),
   variables: activeContractVariables(configuration).filter(field => field.group === index)
 })).filter(group => group.choices.length || group.variables.length || group.id === 2 || group.id === 8))
 const confirmations = computed(() => contractConfirmations.filter(field => !field.when || field.when(configuration)))
@@ -124,6 +125,51 @@ async function readQuoteMetadata(bytes?: Uint8Array, replacing = false) {
     >
       Le modèle a évolué. Vos valeurs ont été reprises ; vérifiez les choix et les conditions avant d’enregistrer.
     </p>
+    <section
+      v-if="provider"
+      class="border-y border-default py-4"
+    >
+      <h2 class="text-base font-semibold text-highlighted">
+        Prestataire
+      </h2>
+      <dl class="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+        <div>
+          <dt class="text-muted">
+            Nom
+          </dt>
+          <dd class="text-highlighted">
+            {{ provider.name }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-muted">
+            SIREN
+          </dt>
+          <dd class="text-highlighted">
+            {{ provider.siren }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-muted">
+            Adresse
+          </dt>
+          <dd class="whitespace-pre-wrap text-highlighted">
+            {{ provider.address }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-muted">
+            Contact
+          </dt>
+          <dd class="text-highlighted">
+            {{ provider.email }} · {{ provider.phone }}
+          </dd>
+        </div>
+      </dl>
+      <p class="mt-3 text-xs text-muted">
+        Ces informations sont communes à tous les contrats et ne sont pas modifiables ici.
+      </p>
+    </section>
     <fieldset
       :disabled="pending"
       class="space-y-4"
@@ -215,7 +261,7 @@ async function readQuoteMetadata(bytes?: Uint8Array, replacing = false) {
       <UFormField
         v-for="field in group.variables"
         :key="field.key"
-        :label="field.label"
+        :label="contractVariableLabel(configuration, field)"
         :name="field.key"
         :required="!field.optional"
         :description="field.key === 'contrat.reference' ? 'Générée à partir de la référence du devis. Vous pouvez la personnaliser.' : undefined"

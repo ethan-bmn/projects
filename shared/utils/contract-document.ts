@@ -60,13 +60,21 @@ export function configuredContractSections(contract: ProjectContract): ContractD
     add(title, body)
   }
 
-  const identity = [value('client.nom'), label('client.type')]
-  if (['PRO_ENTREPRISE', 'ASSOCIATION', 'AUTRE'].includes(choice(config, 'client.type'))) identity.push(value('client.forme'))
-  if (['PRO_ENTREPRISE', 'PRO_INDEPENDANT'].includes(choice(config, 'client.type'))) identity.push(`SIREN : ${value('client.siren')}`)
-  if (choice(config, 'client.type') === 'AUTRE') identity.push(value('client.autre'))
-  let clientIdentity = `Le Client : ${identity.join(', ')}, adresse ${value('client.adresse')}`
-  if (['PRO_ENTREPRISE', 'ASSOCIATION', 'AUTRE'].includes(choice(config, 'client.type'))) clientIdentity += `, représenté par ${value('client.representant')}`
-  clientIdentity += `, e-mail ${value('client.email')}, ci-après « le Client ».`
+  const entityType = choice(config, 'client.entity_type')
+  const clientQuality = choice(config, 'client.qualite')
+  const clientName = entityType === 'natural_person'
+    ? value('client.nom')
+    : value('client.nom')
+  const registration = value('client.immatriculation')
+  let clientIdentity = entityType === 'natural_person'
+    ? `${clientName}, ${clientQuality === 'sole_proprietor' ? `entrepreneur individuel (EI), immatriculé sous le numéro SIREN ${value('client.siren')}, ` : ''}domicilié(e) au ${value('client.adresse')}`
+    : `${clientName}, ${value('client.forme_juridique')}${registration ? `, ${registration}` : ''}, dont le siège social est situé au ${value('client.adresse')}, représenté(e) par ${value('client.representant')} en qualité de ${value('client.fonction_representant')}`
+  if (value('client.email')) clientIdentity += `, e-mail ${value('client.email')}`
+  const contractingCapacity = choice(config, 'client.contracting_capacity') === 'consumer' || choice(config, 'client.type') === 'CONSOMMATEUR'
+    ? 'Particulier'
+    : choice(config, 'client.contracting_capacity') === 'professional' ? 'Professionnel' : ''
+  if (contractingCapacity) clientIdentity += `. Capacité contractuelle : ${contractingCapacity}`
+  clientIdentity += ', ci-après « le Client ». '
   add('Entre les parties', `${paragraphs(0)[0]}\n${clientIdentity}\nLe Prestataire et le Client sont ci-après désignés ensemble « les Parties ».`)
   const documents = [`le devis accepté n° ${value('devis.reference')} du ${value('devis.date')}`, 'le cahier des charges et les livrables annexés', ...annexes.map(annex => annex.title.toLowerCase())]
   add('Préambule - Documents contractuels', `Contrat n° ${value('contrat.reference')} du ${value('contrat.date')}.\nLe présent contrat encadre les prestations expressément commandées par le Client. Font partie intégrante du contrat : ${documents.map((document, index) => `(${index + 1}) ${document}`).join(' ; ')}.\nEn cas de contradiction, l’ordre de priorité est : avenant signé, devis et conditions particulières${dataProcessing(config) ? `, annexe ${dataAnnex} pour les traitements de données` : ''}, présent contrat, autres annexes, cahier des charges ; sous réserve des dispositions impératives applicables.`)

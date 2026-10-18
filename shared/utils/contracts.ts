@@ -2,10 +2,19 @@ import template from '../contract-template.json'
 import type { Client } from '../types/clients'
 import type { ContractConfiguration, ProjectContract } from '../types/contracts'
 import { formatClientAddress } from './client-address'
-import { activeContractVariables, backups, choice, contractChoices, contractConfirmations, contractVariables, dataProcessing, defaultConfiguration, hasService, hosting, selected, support } from './contract-configuration'
+import { activeContractVariables, backups, choice, contractChoices, contractConfirmations, contractVariables, contractVariableLabel, dataProcessing, defaultConfiguration, hasService, hosting, processingRole, selected, support } from './contract-configuration'
 import { configuredContractSections } from './contract-document'
 import type { ContractDocumentSection } from './contract-document'
 import { syncContractReference } from './contract-reference'
+import type { ProviderProfile } from '../types/provider'
+
+const defaultProvider: ProviderProfile = {
+  name: 'Ethan BAUMANN EI',
+  siren: '130584659',
+  address: '248 rue André Philip, 69003 Lyon',
+  email: 'contact@ethanbaumann.fr',
+  phone: '+33667739428'
+}
 
 export const contractSections = template.map((section, index) => ({
   ...section,
@@ -22,27 +31,46 @@ export function fillContractSection(section: typeof contractSections[number], co
   return section.body.replace(/\[[^\]]+\]/g, token => contract.fields[section.fields[index++]!.key]?.trim() || token)
 }
 
-export function createContract(client: Client): ProjectContract {
+export function createContract(client: Client, provider: ProviderProfile = defaultProvider): ProjectContract {
   const fields = Object.fromEntries(contractVariables.map(field => [field.key, '']))
   fields['client.nom'] = client.name
+  fields['client.nom_famille'] = client.kind === 'individual' ? client.name : ''
   fields['client.email'] = client.emails[0] ?? ''
   fields['client.adresse'] = formatClientAddress(client.billingAddress)
+  fields['prestataire.nom'] = provider.name
+  fields['prestataire.siren'] = provider.siren
+  fields['prestataire.adresse'] = provider.address
+  fields['prestataire.email'] = provider.email
   fields['rgpd.responsable'] = client.name
   fields['rgpd.sous_traitant'] = 'Ethan BAUMANN EI'
   fields.reclamations = 'contact@ethanbaumann.fr — 248 rue André Philip, 69003 Lyon'
   const configuration = defaultConfiguration()
-  if (client.kind === 'organization') configuration.choices['client.type'] = 'PRO_ENTREPRISE'
+  if (client.kind === 'organization') {
+    configuration.choices['client.type'] = 'PRO_ENTREPRISE'
+    configuration.choices['client.entity_type'] = 'legal_entity'
+  } else {
+    configuration.choices['client.entity_type'] = 'natural_person'
+    configuration.choices['client.qualite'] = 'individual'
+  }
   return { version: 2, fields, configuration, includeDataProcessing: false, quote: null }
 }
 
-export function upgradeContract(contract: ProjectContract | null | undefined, client: Client): ProjectContract {
-  if (!contract) return createContract(client)
+export function upgradeContract(contract: ProjectContract | null | undefined, client: Client, provider?: ProviderProfile): ProjectContract {
+  if (!contract) return createContract(client, provider)
   if (contract.version === 2) {
     const updated = structuredClone(contract)
+    const profile = provider ?? defaultProvider
+    if (!updated.fields['client.nom']?.trim() && (updated.fields['client.prenom'] || updated.fields['client.nom_famille'])) {
+      updated.fields['client.nom'] = `${updated.fields['client.prenom'] ?? ''} ${updated.fields['client.nom_famille'] ?? ''}`.trim()
+    }
+    updated.fields['prestataire.nom'] = profile.name
+    updated.fields['prestataire.siren'] = profile.siren
+    updated.fields['prestataire.adresse'] = profile.address
+    updated.fields['prestataire.email'] = profile.email
     syncContractReference(updated.fields)
     return updated
   }
-  const updated = createContract(client)
+  const updated = createContract(client, provider)
   updated.quote = contract.quote ? { ...contract.quote } : null
   // Keep every legacy value, including those that need manual classification under the new choices.
   Object.assign(updated.fields, contract.fields)
@@ -79,14 +107,24 @@ export function contractMissingFields(contract: ProjectContract) {
 export function contractExportIssues(contract: ProjectContract): string[] {
   if (contract.version !== 2 || !contract.configuration) return ['Ouvrez et enregistrez le contrat avec le nouveau paramétrage avant l’export.']
   const config = contract.configuration
-  const issues = contractMissingFields(contract).map(field => `À renseigner : ${field.label}.`)
+  const issues = contractMissingFields(contract).map(field => `À renseigner : ${contractVariableLabel(config, field)}.`)
   for (const field of contractChoices) {
+    if (field.hidden) continue
     if (field.when && !field.when(config)) continue
     if (field.multiple) {
       if (['services', 'maintenance', 'securite', 'backups.donnees'].includes(field.key) && !selected(config, field.key).length) issues.push(`Sélectionnez au moins une valeur : ${field.label}.`)
     } else if (!choice(config, field.key)) issues.push(`Choisissez : ${field.label}.`)
   }
   if (choice(config, 'rgpd.sous_traitance') === 'A_QUALIFIER') issues.push('Qualifiez le traitement des données personnelles avant l’export.')
+  const entityType = choice(config, 'client.entity_type')
+  const clientQuality = choice(config, 'client.qualite')
+  if (!['natural_person', 'legal_entity'].includes(entityType)) issues.push('Choisissez la nature juridique du client.')
+  if (entityType === 'natural_person' && !['individual', 'sole_proprietor'].includes(clientQuality)) issues.push('Choisissez la qualité du client.')
+  if (entityType === 'natural_person' && clientQuality === 'individual' && contract.fields['client.siren']?.trim()) issues.push('Un particulier ne doit pas avoir de SIREN dans le contrat.')
+  if (entityType === 'natural_person' && clientQuality === 'sole_proprietor' && !/^\d{9}$/.test(contract.fields['client.siren']?.replace(/\s/g, '') ?? '')) issues.push('Le SIREN de l’entrepreneur individuel doit comporter 9 chiffres.')
+  if (entityType === 'legal_entity' && !contract.fields['client.fonction_representant']?.trim()) issues.push('Renseignez la qualité du représentant autorisé.')
+  if (processingRole(config) === 'undetermined') issues.push('Qualifiez le rôle au regard des données personnelles avant l’export.')
+  if (choice(config, 'processing_role') === 'processor' && !choice(config, 'rgpd.autorisation_sous_traitants')) issues.push('Choisissez le mode d’autorisation des sous-traitants ultérieurs.')
   if (hosting(config) && choice(config, 'hebergement.mode') === 'NON_INCLUS') issues.push('Le service Hébergement est sélectionné mais son offre est « Non inclus ».')
   if (support(config) && choice(config, 'support.mode') === 'SANS_SUPPORT') issues.push('Le service Support est sélectionné mais ses plages sont « Sans support ».')
   if (hasService(config, 'SAUVEGARDES') && !backups(config)) issues.push('Le service Sauvegardes est sélectionné mais son offre est « Absentes ».')
@@ -116,7 +154,7 @@ export function contractExportIssues(contract: ProjectContract): string[] {
 }
 
 function professionalSirenRequired(config: ContractConfiguration) {
-  return ['PRO_ENTREPRISE', 'PRO_INDEPENDANT'].includes(choice(config, 'client.type'))
+  return choice(config, 'client.entity_type') === 'legal_entity' || choice(config, 'client.qualite') === 'sole_proprietor' || ['PRO_ENTREPRISE', 'PRO_INDEPENDANT'].includes(choice(config, 'client.type'))
 }
 
 function validateConfiguration(value: unknown): ContractConfiguration {

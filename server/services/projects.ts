@@ -6,6 +6,7 @@ import type { ProjectDiagrams } from '../../shared/types/diagrams'
 import { validateDiagrams } from '../../shared/utils/diagrams'
 import { validateContract } from '../../shared/utils/contracts'
 import type { ProjectContract } from '../../shared/types/contracts'
+import type { ProviderProfile } from '../../shared/types/provider'
 
 export class ProjectError extends Error {
   constructor(message: string, public statusCode = 400) {
@@ -79,6 +80,12 @@ async function client(sql: postgres.Sql, clientId: string): Promise<Client & { a
   }
 }
 
+async function provider(sql: postgres.Sql): Promise<ProviderProfile> {
+  const [row] = await sql`SELECT name, siren, address, email, phone FROM provider_profile WHERE id = 1`
+  if (!row) throw new ProjectError('Le profil du prestataire est introuvable.', 503)
+  return { name: row.name, siren: row.siren, address: row.address, email: row.email, phone: row.phone }
+}
+
 export async function getClientProjects(sql: postgres.Sql, clientId: string): Promise<ClientProjects> {
   const customer = await client(sql, clientId)
   const rows = await sql<ProjectRow[]>`
@@ -106,7 +113,7 @@ export async function getProject(sql: postgres.Sql, clientId: string, projectId:
   const customer = await client(sql, clientId)
   const [row] = await sql<ProjectRow[]>`SELECT * FROM projects WHERE id = ${projectId} AND client_id = ${clientId}`
   if (!row) throw new ProjectError('Projet introuvable pour ce client.', 404)
-  return { client: customer, project: project(row) }
+  return { client: customer, provider: await provider(sql), project: project(row) }
 }
 
 export async function updateProject(sql: postgres.Sql, clientId: string, projectId: string, input: ProjectInput): Promise<Project> {

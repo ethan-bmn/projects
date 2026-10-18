@@ -1,6 +1,7 @@
 import type { Client } from './clients'
 import type { ProjectDiagrams } from './diagrams'
 import type { ProjectContract } from './contracts'
+import type { ProviderProfile } from './provider'
 
 export const projectSections = [
   { key: 'businessContext', label: 'Contexte métier', optional: true },
@@ -57,5 +58,6 @@ export interface ClientProjects {
 
 export interface ProjectDetail {
   client: Client & { active: boolean }
+  provider?: ProviderProfile
   project: Project
 }
