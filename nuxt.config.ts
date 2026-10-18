@@ -23,7 +23,6 @@ export default defineNuxtConfig({
       chartdbUrl: 'http://localhost:8080'
     },
     databaseUrl: '',
-    abbyApiKey: '',
     abbyApiBaseUrl: 'https://api.app-abby.com',
     chartdbExportUrl: 'http://localhost:8081',
     session: {

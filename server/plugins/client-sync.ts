@@ -4,10 +4,12 @@ export default defineNitroPlugin((nitroApp) => {
   let running: Promise<void> | undefined
 
   function check() {
-    if (running || !getAbbyConfig().apiKey.trim()) return
+    if (running) return
     running = (async () => {
       try {
-        const result = await syncClients(getDatabase(), getAbbyConfig(), { automatic: true })
+        const config = await getAbbyConfig()
+        if (!config.apiKey) return
+        const result = await syncClients(getDatabase(), config, { automatic: true })
         if (result.status === 'failed') console.error(`[Abby] ${result.message}`)
       } catch {
         // Database errors may contain credentials or client details.

@@ -139,9 +139,25 @@ bun run dev
 ## Abby client synchronization
 
 1. Create an API key in [Abby integrations](https://my.app-abby.com/settings/integrations).
-2. Set `NUXT_ABBY_API_KEY` in your ignored `.env` file. Keep it on the server.
-3. Run `bun run db:migrate`, then restart `bun run dev`.
+2. Run `bun run db:migrate` to create the singleton `abby_settings` row (migration `011_abby_settings.sql`).
+3. Set `abby_settings.api_key` for `id = 1` using your private database connection, then start `bun run dev`.
 4. Sign in and click **Synchroniser les clients** to import immediately.
+
+For example, run this SQL through your database administration tool, replacing the placeholder with your key:
+
+```sql
+UPDATE abby_settings
+SET api_key = 'your-abby-api-key', updated_at = now()
+WHERE id = 1;
+```
+
+The key is stored only in PostgreSQL and read by the server for each synchronization.
+Changes take effect on the next manual or scheduled sync without restarting the app.
+Set `api_key` to an empty string to disable automatic synchronization. The client list
+receives only a configured flag, never the key. Protect database access and backups
+because they contain this credential. When upgrading, copy your existing
+`NUXT_ABBY_API_KEY` into this row before removing it from your environment; that
+environment variable is no longer used.
 
 `NUXT_ABBY_API_BASE_URL` defaults to `https://api.app-abby.com`, as documented in
 [Abby authentication](https://docs.abby.fr/api/authentification). The

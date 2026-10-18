@@ -8,8 +8,9 @@ standalone production stack with its own database volume. The local
 The app image builds with Bun 1.3.14 and Node 24, then runs the compiled Nitro
 server as a non-root user. Database credentials are URL-encoded by the container
 entrypoint, so production does not need a manually constructed `DATABASE_URL`.
-Owner credentials are given only to the initialization job. Abby and session
-secrets are given only to the app; they are never Docker build arguments.
+Owner credentials are given only to the initialization job. The session secret
+is given only to the app. The Abby key is stored in PostgreSQL; these secrets
+are never Docker build arguments.
 
 ## First deployment
 
@@ -35,7 +36,6 @@ Edit `.env.production` and set:
   The plain password must contain 12–1024 characters. To generate a scrypt hash
   without installing Bun on the server, use the command below.
 - `NUXT_SESSION_PASSWORD` to a random secret of at least 32 characters.
-- `NUXT_ABBY_API_KEY` to your Abby API key if you want client synchronization.
 
 Quote hashes and passwords in single quotes in the environment file to
 preserve `$` characters.
@@ -55,6 +55,12 @@ The database must become healthy before `db-init` applies all migrations and
 creates or updates the owner. The app starts only after that job exits
 successfully and the diagram worker is healthy. `db-init` remaining in the
 `Exited (0)` state is expected. `/health` checks the app's database connection.
+
+For Abby synchronization, set `abby_settings.api_key` where `id = 1` through a
+private database connection after initialization; see the SQL example in
+[the synchronization setup](../README.md#abby-client-synchronization). When
+upgrading, transfer your previous `NUXT_ABBY_API_KEY` value to this row and remove
+it from `.env.production`. Key changes take effect on the next sync without a restart.
 
 Visit your app domain at `/auth` and sign in. Open the public ChartDB URL in a
 new tab and complete any authentication configured by your proxy before using

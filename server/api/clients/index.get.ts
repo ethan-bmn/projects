@@ -23,6 +23,7 @@ export default defineEventHandler(async (event): Promise<ClientList> => {
       WHERE active = true AND (${kind === 'all'} OR kind = ${String(kind)})
     `
     const [state] = await sql`SELECT last_success_at, last_attempt_at, last_error FROM abby_sync_state WHERE id = 1`
+    const [settings] = await sql`SELECT btrim(api_key) <> '' AS configured FROM abby_settings WHERE id = 1`
     return {
       clients: clients.map(item => ({
         id: item.id,
@@ -37,7 +38,7 @@ export default defineEventHandler(async (event): Promise<ClientList> => {
       page,
       pageSize,
       sync: {
-        configured: Boolean(getAbbyConfig(event).apiKey.trim()),
+        configured: settings?.configured ?? false,
         lastSuccessAt: state?.last_success_at?.toISOString() ?? null,
         lastAttemptAt: state?.last_attempt_at?.toISOString() ?? null,
         lastError: state?.last_error ?? null

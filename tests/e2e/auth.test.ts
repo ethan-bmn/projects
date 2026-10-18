@@ -37,7 +37,7 @@ await setup({
   env: {
     NUXT_DATABASE_URL: database.url,
     DATABASE_URL: database.url,
-    NUXT_ABBY_API_KEY: '',
+    NUXT_ABBY_API_KEY: 'unused-environment-key',
     NUXT_CHARTDB_EXPORT_URL: `http://127.0.0.1:${(svgWorker.address() as AddressInfo).port}`,
     // These differ deliberately: runtime environment credentials must not bypass the DB.
     NUXT_OWNER_EMAIL: 'not-the-owner@example.test',
@@ -216,6 +216,25 @@ describe('owner authentication', () => {
       expect((await fetch('/api/clients?page=0', { headers: { cookie } })).status).toBe(400)
     } finally {
       await database.sql`DELETE FROM clients WHERE abby_id = 'http-test'`
+    }
+  })
+
+  it('reads Abby connection status from the DB immediately without disclosing the key', async () => {
+    const cookie = sessionCookie(await login())
+    const apiKey = 'private-database-abby-key'
+    try {
+      await database.sql`UPDATE abby_settings SET api_key = ${apiKey} WHERE id = 1`
+      const response = await fetch('/api/clients', { headers: { cookie } })
+      expect(response.status).toBe(200)
+      const body = await response.text()
+      expect(JSON.parse(body).sync.configured).toBe(true)
+      expect(body).not.toContain(apiKey)
+      expect(body).not.toContain('unused-environment-key')
+      await database.sql`UPDATE abby_settings SET api_key = '' WHERE id = 1`
+      const cleared = await fetch('/api/clients', { headers: { cookie } })
+      expect((await cleared.json()).sync.configured).toBe(false)
+    } finally {
+      await database.sql`UPDATE abby_settings SET api_key = '' WHERE id = 1`
     }
   })
 
