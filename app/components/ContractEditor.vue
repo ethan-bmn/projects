@@ -6,6 +6,7 @@ import type { ProviderProfile } from '#shared/types/provider'
 import { contractExportIssues, contractSections, filledContractSections, upgradeContract } from '#shared/utils/contracts'
 import { activeContractVariables, clientCodeOwnershipClause, contractChoices, contractConfirmations, contractGroups, contractVariableLabel, dataProcessing } from '#shared/utils/contract-configuration'
 import { syncContractReference } from '#shared/utils/contract-reference'
+import { contractFieldHelp } from '#shared/utils/contract-field-help'
 
 const props = defineProps<{ client: Client, provider?: ProviderProfile, initial?: ProjectContract | null, pending: boolean, error: string }>()
 const emit = defineEmits<{ submit: [contract: ProjectContract], cancel: [] }>()
@@ -186,16 +187,24 @@ async function readQuoteMetadata(bytes?: Uint8Array, replacing = false) {
       <p class="text-sm text-muted">
         Toutes les pages du devis PDF sont ajoutées à la fin du contrat (5 Mo maximum).
       </p>
-      <label class="block text-sm font-medium text-highlighted">
-        Fichier PDF du devis
-        <input
-          type="file"
-          accept="application/pdf,.pdf"
-          :disabled="pending || uploading || readingQuote"
-          class="mt-2 block w-full text-sm"
-          @change="upload"
-        >
-      </label>
+      <div class="flex items-center justify-between gap-2">
+        <label
+          for="contract-quote"
+          class="text-sm font-medium text-highlighted"
+        >Fichier PDF du devis</label>
+        <FieldHelp
+          label="Fichier PDF du devis"
+          :help="contractFieldHelp.quote!"
+        />
+      </div>
+      <input
+        id="contract-quote"
+        type="file"
+        accept="application/pdf,.pdf"
+        :disabled="pending || uploading || readingQuote"
+        class="mt-2 block w-full text-sm"
+        @change="upload"
+      >
       <p
         v-if="form.quote"
         class="text-sm text-muted"
@@ -248,6 +257,12 @@ async function readQuoteMetadata(bytes?: Uint8Array, replacing = false) {
         :label="field.label"
         :name="field.key"
       >
+        <template #hint>
+          <FieldHelp
+            :label="field.label"
+            :help="contractFieldHelp[field.key]!"
+          />
+        </template>
         <UCheckboxGroup
           v-if="field.multiple"
           v-model="configuration.selections[field.key]"
@@ -272,6 +287,12 @@ async function readQuoteMetadata(bytes?: Uint8Array, replacing = false) {
         :required="!field.optional"
         :description="field.key === 'contrat.reference' ? 'Générée à partir de la référence du devis. Vous pouvez la personnaliser.' : undefined"
       >
+        <template #hint>
+          <FieldHelp
+            :label="contractVariableLabel(configuration, field)"
+            :help="contractFieldHelp[field.key]!"
+          />
+        </template>
         <UTextarea
           v-if="field.type === 'textarea'"
           :model-value="form.fields[field.key]"
@@ -296,13 +317,21 @@ async function readQuoteMetadata(bytes?: Uint8Array, replacing = false) {
         />
       </UFormField>
       <template v-if="group.id === 8">
-        <UCheckbox
+        <div
           v-for="confirmation in confirmations"
           :key="confirmation.key"
-          v-model="configuration.confirmations[confirmation.key]"
-          :label="confirmation.label"
-          :disabled="pending || readingQuote || uploading"
-        />
+          class="flex items-start justify-between gap-2"
+        >
+          <UCheckbox
+            v-model="configuration.confirmations[confirmation.key]"
+            :label="confirmation.label"
+            :disabled="pending || readingQuote || uploading"
+          />
+          <FieldHelp
+            :label="confirmation.label"
+            :help="contractFieldHelp[`confirmation.${confirmation.key}`]!"
+          />
+        </div>
         <p class="text-sm text-muted">
           Les vérifications sont à refaire après toute modification du contrat.
         </p>

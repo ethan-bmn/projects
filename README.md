@@ -18,6 +18,8 @@ Signature details are completed after export. The editor does not collect the si
 
 Annex references are generated from their type and the current contract reference: `ANN-HEB-{contract reference}` for the technical hosting annex and `ANN-RGPD-{contract reference}` for the data-processing annex. Both start at version `1`; saving or exporting does not increment the version. These values appear in the preview and exported documents rather than editable inputs.
 
+Every contract input, service choice, and verification checkbox has an information button with a French explanation and an example. Open it by click, touch, or keyboard; dismiss it with Escape or by clicking outside. Examples are guidance only and do not fill or modify the form.
+
 ## Starter Template
 
 [![Nuxt UI](https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?logo=nuxt&labelColor=020420)](https://ui.nuxt.com)
