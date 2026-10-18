@@ -6,6 +6,32 @@ export interface ContractDocumentSection {
   title: string
   body: string
   signature?: boolean
+  document?: 'contract' | 'hosting' | 'gdpr'
+}
+
+export interface ContractDocument {
+  kind: 'contract' | 'hosting' | 'gdpr'
+  title: string
+  sections: ContractDocumentSection[]
+}
+
+export function groupContractDocuments(sections: ContractDocumentSection[]): ContractDocument[] {
+  const titles = {
+    contract: 'Contrat de prestation',
+    hosting: 'Annexe technique d’hébergement',
+    gdpr: 'Accord de sous-traitance RGPD'
+  }
+  const documents: ContractDocument[] = []
+  for (const section of sections) {
+    const kind = section.document ?? 'contract'
+    let document = documents.find(document => document.kind === kind)
+    if (!document) {
+      document = { kind, title: titles[kind], sections: [] }
+      documents.push(document)
+    }
+    document.sections.push(section)
+  }
+  return documents
 }
 
 export function configuredContractSections(contract: ProjectContract): ContractDocumentSection[] {
@@ -23,7 +49,8 @@ export function configuredContractSections(contract: ProjectContract): ContractD
   const technicalAnnex = annex('technical', 'Fiche de service, disponibilité et sauvegardes', technical)
   const dataAnnex = annex('data', 'Accord de traitement des données personnelles', dataProcessing(config))
   const sections: ContractDocumentSection[] = []
-  const add = (title: string, body: string, signature = false) => sections.push({ title, body, signature })
+  let document: ContractDocumentSection['document'] = 'contract'
+  const add = (title: string, body: string, signature = false) => sections.push({ title, body, signature, document })
   function original(index: number, replacements: string[] = []) {
     let field = 0
     return template[index]!.body.replace(/\[[^\]]+\]/g, () => replacements[field++] ?? '').replaceAll('annexe A', `annexe ${technicalAnnex}`).replaceAll('annexe B', `annexe ${dataAnnex}`)
@@ -103,6 +130,7 @@ export function configuredContractSections(contract: ProjectContract): ContractD
     add(`${technicalAnnex}.${++technicalIndex} ${title}`, body)
   }
   for (const entry of annexes) {
+    document = entry.name === 'technical' ? 'hosting' : 'gdpr'
     add(entry.title, '')
     if (entry.name === 'technical') {
       if (hosting(config)) {

@@ -4,6 +4,7 @@ import { PDFDocument } from 'pdf-lib'
 import { describe, expect, it, vi } from 'vitest'
 import { contractExportIssues, contractMissingFields, contractSections, createContract, filledContractSections, upgradeContract, validateContract } from '../../shared/utils/contracts'
 import { activeContractVariables } from '../../shared/utils/contract-configuration'
+import { groupContractDocuments } from '../../shared/utils/contract-document'
 import { validateProjectInput } from '../../server/services/projects'
 import { buildContractPdf, renderContractPdf } from '../../app/lib/contract-pdf'
 import type { ProjectDetail } from '../../shared/types/projects'
@@ -201,5 +202,36 @@ describe('configured project contracts', () => {
       expect(x).toBeGreaterThanOrEqual(20)
       expect(y).toBeLessThanOrEqual(doc.internal.pageSize.getHeight() - 12)
     }
+  })
+
+  it('starts each document on a separate page and restarts its page numbering', async () => {
+    const input = await detail()
+    const documents = groupContractDocuments(filledContractSections(input.project.contract!))
+    expect(documents.map(document => document.kind)).toEqual(['contract', 'hosting', 'gdpr'])
+    const doc = new jsPDF()
+    const output: { text: string, page: number, y: number }[] = []
+    const write = doc.text.bind(doc)
+    vi.spyOn(doc, 'text').mockImplementation((...args) => {
+      output.push({ text: String(args[0]), page: doc.getCurrentPageInfo().pageNumber, y: args[2] })
+      return write(...args)
+    })
+    renderContractPdf(doc, input, fonts)
+    const starts = output.filter(entry => entry.y === 25)
+    expect(starts).toHaveLength(3)
+    expect(starts[0]!.page).toBe(1)
+    expect(starts[1]!.page).toBeGreaterThan(starts[0]!.page)
+    expect(starts[2]!.page).toBeGreaterThan(starts[1]!.page)
+    const footers = output.filter(entry => entry.text.startsWith('Page '))
+    for (const [index, start] of starts.entries()) {
+      const lastPage = starts[index + 1] ? starts[index + 1]!.page - 1 : doc.getNumberOfPages()
+      const pages = lastPage - start.page + 1
+      expect(footers.filter(entry => entry.page >= start.page && entry.page <= lastPage).map(entry => entry.text))
+        .toEqual(Array.from({ length: pages }, (_, page) => `Page ${page + 1} / ${pages} · Contrat C-2026-001`))
+    }
+    expect(groupContractDocuments(filledContractSections(auditContract())).map(document => document.kind)).toEqual(['contract'])
+    const gdprOnly = auditContract()
+    gdprOnly.configuration!.choices['rgpd.sous_traitance'] = 'OUI'
+    completeContract(gdprOnly)
+    expect(groupContractDocuments(filledContractSections(gdprOnly)).map(document => document.kind)).toEqual(['contract', 'gdpr'])
   })
 })

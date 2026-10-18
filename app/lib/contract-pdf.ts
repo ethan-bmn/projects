@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf'
 import { PDFDocument } from 'pdf-lib'
 import type { ProjectDetail } from '#shared/types/projects'
 import { contractExportIssues, filledContractSections, validateContract } from '#shared/utils/contracts'
+import { groupContractDocuments } from '#shared/utils/contract-document'
 import { loadFont, projectPdfFilename } from './project-pdf'
 import type { PdfFonts } from './project-pdf'
 
@@ -21,6 +22,7 @@ export function renderContractPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfF
   const margin = 20
   const textWidth = width - margin * 2
   const accent = [104, 103, 246] as const
+  let documentTitle = 'Contrat de prestation'
   let y = 56
   function style(size = 11, bold = false) {
     doc.setFont('PublicSans', bold ? 'bold' : 'normal')
@@ -34,7 +36,7 @@ export function renderContractPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfF
     doc.rect(margin, 8, textWidth, 12, 'F')
     style(9)
     doc.setTextColor(255)
-    doc.text('Contrat de prestation', margin + 4, 15)
+    doc.text(documentTitle, margin + 4, 15)
     y = 28
   }
   function write(text: string, size = 11, bold = false, inset = 0) {
@@ -49,48 +51,56 @@ export function renderContractPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfF
       y += lineHeight
     }
   }
-  doc.setFillColor(...accent)
-  doc.rect(margin, 15, textWidth, 30, 'F')
-  style(20, true)
-  doc.setTextColor(255)
-  doc.text('Contrat de prestation', margin + 4, 32)
-  style(10, true)
-  doc.setTextColor(255)
-  doc.text('Ethan BAUMANN EI', width - margin - 4, 24, { align: 'right' })
-  doc.setFontSize(9)
-  doc.setFont('PublicSans', 'normal')
-  for (const [index, line] of ['SIREN : 130584659', '+33667739428', 'contact@ethanbaumann.fr'].entries()) {
-    doc.text(line, width - margin - 4, 29 + index * 5, { align: 'right' })
-  }
-  write(detail.project.name, 16, true)
-  y += 3
-  write(`Contrat n° ${contract.fields['contrat.reference']}`, 11, true)
-  y += 5
-  for (const section of filledContractSections(contract)) {
-    style(11.5, true)
-    const lines = doc.splitTextToSize(section.title, textWidth - 6) as string[]
-    const headingHeight = lines.length * 11.5 * 0.352778 * 1.45
-    ensureSpace(headingHeight + 20)
-    doc.setFillColor(245, 245, 255)
-    doc.rect(margin, y - 4.5, textWidth, headingHeight + 1.8, 'F')
+  const documents = groupContractDocuments(filledContractSections(contract))
+  for (const [index, document] of documents.entries()) {
+    if (index > 0) doc.addPage()
+    const firstPage = doc.getNumberOfPages()
+    documentTitle = document.title
+    y = 56
     doc.setFillColor(...accent)
-    doc.rect(margin, y - 4.5, 0.8, headingHeight + 1.8, 'F')
-    write(section.title, 11.5, true, 3)
+    doc.rect(margin, 15, textWidth, 30, 'F')
+    style(14, true)
+    doc.setTextColor(255)
+    doc.text(doc.splitTextToSize(documentTitle, textWidth - 80), margin + 4, 25)
+    style(10, true)
+    doc.setTextColor(255)
+    doc.text('Ethan BAUMANN EI', width - margin - 4, 24, { align: 'right' })
+    doc.setFontSize(9)
+    doc.setFont('PublicSans', 'normal')
+    for (const [index, line] of ['SIREN : 130584659', '+33667739428', 'contact@ethanbaumann.fr'].entries()) {
+      doc.text(line, width - margin - 4, 29 + index * 5, { align: 'right' })
+    }
+    write(detail.project.name, 16, true)
     y += 3
-    if (section.body) write(section.body)
-    y += 6
-    if (section.signature) y += 20
-  }
-  const pages = doc.getNumberOfPages()
-  for (let page = 1; page <= pages; page++) {
-    doc.setPage(page)
-    doc.setDrawColor(210)
-    doc.setLineWidth(0.2)
-    doc.line(margin, height - 20, width - margin, height - 20)
-    style(9)
-    doc.setTextColor(100)
-    doc.text('Ethan BAUMANN EI', margin, height - 12)
-    doc.text(`Page ${page} / ${pages} · Devis joint en annexe`, width - margin, height - 12, { align: 'right' })
+    write(`Contrat n° ${contract.fields['contrat.reference']}`, 11, true)
+    y += 5
+    for (const section of document.sections) {
+      style(11.5, true)
+      const lines = doc.splitTextToSize(section.title, textWidth - 6) as string[]
+      const headingHeight = lines.length * 11.5 * 0.352778 * 1.45
+      ensureSpace(headingHeight + 20)
+      doc.setFillColor(245, 245, 255)
+      doc.rect(margin, y - 4.5, textWidth, headingHeight + 1.8, 'F')
+      doc.setFillColor(...accent)
+      doc.rect(margin, y - 4.5, 0.8, headingHeight + 1.8, 'F')
+      write(section.title, 11.5, true, 3)
+      y += 3
+      if (section.body) write(section.body)
+      y += 6
+      if (section.signature) y += 20
+    }
+    const lastPage = doc.getNumberOfPages()
+    const pages = lastPage - firstPage + 1
+    for (let page = firstPage; page <= lastPage; page++) {
+      doc.setPage(page)
+      doc.setDrawColor(210)
+      doc.setLineWidth(0.2)
+      doc.line(margin, height - 20, width - margin, height - 20)
+      style(9)
+      doc.setTextColor(100)
+      doc.text('Ethan BAUMANN EI', margin, height - 12)
+      doc.text(`Page ${page - firstPage + 1} / ${pages} · Contrat ${contract.fields['contrat.reference']}`, width - margin, height - 12, { align: 'right' })
+    }
   }
   return doc
 }

@@ -1,5 +1,7 @@
 # Contract generator
 
+The final export remains one PDF containing separate documents: the main contract, the applicable hosting/technical appendix, and the GDPR subcontracting agreement when required. Each document starts on a new page, has its own title and continuation headers, and restarts page numbering at 1. All pages of the accepted quote follow these documents unchanged.
+
 The generator follows the G0–G8 setup sheet at the beginning of `CONTRACT_TEMPLATE.pdf`. This sheet is input guidance only and is never included in an exported contract. The client-facing clauses after the sheet retain the previous template's wording; `shared/contract-template.json` also provides stable mappings for older drafts.
 
 The editor uses the template's stable choice identifiers and semantic variable names. `shared/utils/contract-configuration.ts` defines labels, allowed values, dependencies, and required variables. It covers client status, subscribed services, development and rights, hosting, SLA and support, maintenance and security, backups, duration, reversibility, and data processing. Branches disappear when their triggering service or option is inactive; their saved values are retained for later editing. The sales-context selector from the template is omitted at the user's request; the other consumer-specific fields and clauses remain.
