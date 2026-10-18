@@ -32,6 +32,25 @@ async function detail(contract = fullContract()): Promise<ProjectDetail> {
 const written = (contract: ProjectContract) => filledContractSections(contract).map(section => `${section.title}\n${section.body}`).join('\n')
 
 describe('configured project contracts', () => {
+  it.each([auditContract, fullContract])('exports unsigned documents without collecting signature details', (makeContract) => {
+    const contract = makeContract()
+    const signatureKeys = ['signature.ville', 'signature.exemplaires', 'client.signataire', 'contrat.date_signature', 'contrat.lieu_signature']
+    const active = activeContractVariables(contract.configuration!).map(field => field.key)
+    for (const key of signatureKeys) {
+      expect(active).not.toContain(key)
+      contract.fields[key] = ''
+    }
+    expect(contractExportIssues(contract)).toEqual([])
+    const unsigned = written(contract)
+    expect(unsigned).toContain('Signé à ____________________, le ____________________.')
+    expect(unsigned).toContain('Signature : ____________________')
+    for (const key of signatureKeys) contract.fields[key] = '{{old-signature-value}}'
+    const saved = validateContract(contract)!
+    expect(contractExportIssues(saved)).toEqual([])
+    expect(written(saved)).toBe(unsigned)
+    for (const key of signatureKeys) expect(saved.fields[key]).toBe('{{old-signature-value}}')
+  })
+
   it('prefills client data and starts with unqualified data processing and no SLA promise', () => {
     const contract = createContract({ ...client, billingAddress: { address: '12 rue du Test', complement: 'Étage 2', city: 'Lyon', zipCode: '69003', state: null, country: 'FR' } })
     expect(contract.version).toBe(2)

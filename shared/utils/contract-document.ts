@@ -131,7 +131,7 @@ export function configuredContractSections(contract: ProjectContract): ContractD
   article(12, original(13, [value('assurance')]))
   article(13, original(14))
   article(14, `Toute réclamation est adressée en priorité à ${value('reclamations')}. Les Parties recherchent une solution amiable avant toute procédure, sans priver quiconque de ses recours légaux.${consumer(config) ? `\nMédiateur de la consommation : ${value('mediateur')}.` : ''}\nLes règles impératives de compétence juridictionnelle s’appliquent.`)
-  add(template[16]!.title, `Les Parties déclarent avoir pris connaissance du contrat n° ${value('contrat.reference')} et de ses annexes, et accepter expressément les prestations et conditions particulières figurant au devis. Signé à ${value('signature.ville')}, le ${value('contrat.date')}, en ${value('signature.exemplaires')} exemplaires ou par procédé de signature électronique accepté.\nLe Prestataire : Ethan BAUMANN EI — Signature : ____________________\nLe Client : ${value('client.nom')} — Signature : ____________________`, true)
+  add(template[16]!.title, `Les Parties déclarent avoir pris connaissance du contrat n° ${value('contrat.reference')} et de ses annexes, et accepter expressément les prestations et conditions particulières figurant au devis.\nSigné à ____________________, le ____________________.\nLe Prestataire : Ethan BAUMANN EI — Signature : ____________________\nLe Client : ${value('client.nom')} — Signature : ____________________`, true)
 
   let technicalIndex = 0
   function technicalSection(title: string, body: string) {

@@ -353,6 +353,8 @@ for (const key of ['client.type', 'rgpd.sous_traitance']) contractChoices.find(f
 for (const key of ['client.forme']) contractVariables.find(field => field.key === key)!.hidden = true
 for (const key of ['client.prenom', 'client.nom_famille']) contractVariables.find(field => field.key === key)!.hidden = true
 for (const key of ['prestataire.nom', 'prestataire.siren', 'prestataire.adresse', 'prestataire.email']) contractVariables.find(field => field.key === key)!.hidden = true
+// Keep saved signature values compatible, but collect them when the documents are signed.
+for (const key of ['signature.ville', 'signature.exemplaires', 'client.signataire', 'contrat.date_signature', 'contrat.lieu_signature']) contractVariables.find(field => field.key === key)!.hidden = true
 
 export const contractConfirmations = [
   { key: 'identite', label: 'Identité des parties vérifiée' },

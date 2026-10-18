@@ -14,6 +14,8 @@ Migration `009_client_billing_address.sql` adds a structured `billing_address` c
 
 Uploading a quote also reads all its pages locally with PDF.js and prefills the detected quote reference and issue date in the identity section. Both remain editable. Dates are normalized to `DD/MM/YYYY`; validity and expiry dates are excluded. Use **Lire la référence et la date du PDF** to extract the values again from an already attached quote. Scanned PDFs without a text layer or unrecognized formats require manual entry; the attachment is still retained.
 
+Signature details are completed after export. The editor does not collect the signature city, date, signatory, or copy count, and these do not block export. The contract keeps blank city, date, and signature lines for signing later; the contract date remains separate.
+
 ## Starter Template
 
 [![Nuxt UI](https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?logo=nuxt&labelColor=020420)](https://ui.nuxt.com)
