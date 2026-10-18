@@ -32,6 +32,23 @@ async function detail(contract = fullContract()): Promise<ProjectDetail> {
 const written = (contract: ProjectContract) => filledContractSections(contract).map(section => `${section.title}\n${section.body}`).join('\n')
 
 describe('configured project contracts', () => {
+  it('generates distinct annex references and versions from the current contract reference', () => {
+    const contract = fullContract()
+    contract.fields['annexe.reference'] = '{{obsolete}}'
+    contract.fields['annexe.version'] = '{{obsolete}}'
+    const active = activeContractVariables(contract.configuration!).map(field => field.key)
+    expect(active).not.toContain('annexe.reference')
+    expect(active).not.toContain('annexe.version')
+    expect(contractExportIssues(contract)).toEqual([])
+    for (const reference of ['C-2026-001', 'CUSTOM-002']) {
+      contract.fields['contrat.reference'] = reference
+      const documents = groupContractDocuments(filledContractSections(validateContract(contract)!))
+      expect(documents.find(document => document.kind === 'hosting')!.sections[0]!.body).toContain(`Référence : ANN-HEB-${reference}\nVersion : 1`)
+      expect(documents.find(document => document.kind === 'gdpr')!.sections[0]!.body).toContain(`Référence : ANN-RGPD-${reference}\nVersion : 1`)
+      expect(written(contract)).not.toContain('{{obsolete}}')
+    }
+  })
+
   it.each([auditContract, fullContract])('exports unsigned documents without collecting signature details', (makeContract) => {
     const contract = makeContract()
     const signatureKeys = ['signature.ville', 'signature.exemplaires', 'client.signataire', 'contrat.date_signature', 'contrat.lieu_signature']

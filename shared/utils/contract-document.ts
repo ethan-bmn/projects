@@ -1,5 +1,6 @@
 import template from '../contract-template.json'
 import type { ProjectContract } from '../types/contracts'
+import { annexMetadata } from './annex-reference'
 import { backups, choice, clientCodeOwnershipClause, consumer, dataProcessing, development, hasService, hosting, maintenance, optionLabel, security, selected, sla, support } from './contract-configuration'
 
 export interface ContractDocumentSection {
@@ -139,7 +140,9 @@ export function configuredContractSections(contract: ProjectContract): ContractD
   }
   for (const entry of annexes) {
     document = entry.name === 'technical' ? 'hosting' : 'gdpr'
-    add(entry.title, '')
+    const metadata = annexMetadata(document, contract.fields['contrat.reference'] ?? '')
+    const identification = `Référence : ${metadata.reference || '{{contrat.reference}}'}\nVersion : ${metadata.version}\nContrat : ${value('contrat.reference')}`
+    add(entry.title, identification)
     if (entry.name === 'technical') {
       if (hosting(config)) {
         technicalSection('Identification et hébergement', `Client : ${value('client.nom')}. Service / domaine : ${value('service.domaine')}. Environnement : ${value('service.environnement')}. Activation : ${value('service.activation')}.\nInfrastructure : ${choice(config, 'hebergement.infrastructure') === 'AUTRE' ? value('hebergement.infrastructure_autre') : label('hebergement.infrastructure')}. Fournisseur : ${value('hebergeur.nom')}. Région : ${value('hebergeur.region')}.\nOffre : ${label('hebergement.mode')}. Prix : ${value('hebergement.prix')}. Durée : ${value('hebergement.duree')}.${choice(config, 'hebergement.mode') === 'OFFERT_DUREE_DEFINIE' ? ` Fin de la gratuité : ${value('hebergement.fin')}.` : ''}`)
@@ -160,7 +163,7 @@ export function configuredContractSections(contract: ProjectContract): ContractD
         ['Sous-traitants ultérieurs', 'sous_traitants'], ['Confidentialité et sécurité', 'securite'], ['Assistance', 'assistance'],
         ['Violations', 'violations'], ['Audits', 'audits'], ['Fin de mission', 'fin'], ['Transferts internationaux', 'transferts']
       ]
-      sections[sections.length - 1]!.body = dataFields.map(([label, key]) => `${label} : ${value(`rgpd.${key}`)}`).join('\n')
+      sections[sections.length - 1]!.body = `${identification}\n${dataFields.map(([label, key]) => `${label} : ${value(`rgpd.${key}`)}`).join('\n')}`
     }
   }
   let articleNumber = 0

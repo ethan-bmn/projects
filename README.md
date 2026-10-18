@@ -16,6 +16,8 @@ Uploading a quote also reads all its pages locally with PDF.js and prefills the 
 
 Signature details are completed after export. The editor does not collect the signature city, date, signatory, or copy count, and these do not block export. The contract keeps blank city, date, and signature lines for signing later; the contract date remains separate.
 
+Annex references are generated from their type and the current contract reference: `ANN-HEB-{contract reference}` for the technical hosting annex and `ANN-RGPD-{contract reference}` for the data-processing annex. Both start at version `1`; saving or exporting does not increment the version. These values appear in the preview and exported documents rather than editable inputs.
+
 ## Starter Template
 
 [![Nuxt UI](https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?logo=nuxt&labelColor=020420)](https://ui.nuxt.com)
