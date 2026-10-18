@@ -43,6 +43,15 @@ useSeoMeta({
 
       <template #right>
         <span class="hidden text-sm text-muted sm:block">{{ user?.email }}</span>
+        <UButton
+          to="/settings"
+          label="Paramètres"
+          aria-label="Paramètres"
+          icon="i-lucide-settings"
+          color="neutral"
+          variant="ghost"
+          :ui="{ label: 'hidden sm:inline' }"
+        />
         <UColorModeButton />
         <UButton
           label="Se déconnecter"

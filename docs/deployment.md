@@ -52,13 +52,12 @@ docker compose --env-file .env.production -f docker-compose.production.yaml ps -
 ```
 
 The database must become healthy before `db-init` applies all migrations and
-creates or updates the owner. The app starts only after that job exits
+creates the owner if absent, preserving an existing account. The app starts only after that job exits
 successfully and the diagram worker is healthy. `db-init` remaining in the
 `Exited (0)` state is expected. `/health` checks the app's database connection.
 
-For Abby synchronization, set `abby_settings.api_key` where `id = 1` through a
-private database connection after initialization; see the SQL example in
-[the synchronization setup](../README.md#abby-client-synchronization). When
+For Abby synchronization, sign in and open **Paramètres → Connexion Abby** after
+initialization; see [the synchronization setup](../README.md#abby-client-synchronization). When
 upgrading, transfer your previous `NUXT_ABBY_API_KEY` value to this row and remove
 it from `.env.production`. Key changes take effect on the next sync without a restart.
 
@@ -79,8 +78,11 @@ docker compose --env-file .env.production -f docker-compose.production.yaml logs
 Back up PostgreSQL before updating. Pull your code changes and rerun the same
 `up -d --build` command. The initialization job applies new migrations before
 the new app starts. Keep `NUXT_SESSION_PASSWORD` stable to preserve sessions;
-changing it signs everyone out. Changing owner seed credentials and rerunning
-the initialization job updates the single account. Changing `POSTGRES_*` does
+changing it signs everyone out. Edit account credentials in **Paramètres → Compte**;
+the initialization job preserves them during updates. For account recovery, set
+the owner credentials in `.env.production` and run
+`docker compose --env-file .env.production -f docker-compose.production.yaml run --rm db-init bun scripts/seed-owner.ts --update`.
+Changing `POSTGRES_*` does
 not change users/passwords in an existing PostgreSQL volume.
 
 The production volume starts empty; it does not import your development data.

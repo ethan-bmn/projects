@@ -42,8 +42,8 @@ export function createContract(client: Client, provider: ProviderProfile = defau
   fields['prestataire.adresse'] = provider.address
   fields['prestataire.email'] = provider.email
   fields['rgpd.responsable'] = client.name
-  fields['rgpd.sous_traitant'] = 'Ethan BAUMANN EI'
-  fields.reclamations = 'contact@ethanbaumann.fr — 248 rue André Philip, 69003 Lyon'
+  fields['rgpd.sous_traitant'] = provider.name
+  fields.reclamations = `${provider.email} — ${provider.address}`
   const configuration = defaultConfiguration()
   if (client.kind === 'organization') {
     configuration.choices['client.type'] = 'PRO_ENTREPRISE'

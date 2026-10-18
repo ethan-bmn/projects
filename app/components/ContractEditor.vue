@@ -167,7 +167,13 @@ async function readQuoteMetadata(bytes?: Uint8Array, replacing = false) {
         </div>
       </dl>
       <p class="mt-3 text-xs text-muted">
-        Ces informations sont communes à tous les contrats et ne sont pas modifiables ici.
+        Ces informations sont communes à tous les contrats.
+        <NuxtLink
+          to="/settings#provider"
+          class="underline underline-offset-2"
+        >
+          Modifier dans les paramètres
+        </NuxtLink>
       </p>
     </section>
     <fieldset

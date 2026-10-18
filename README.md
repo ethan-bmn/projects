@@ -67,10 +67,10 @@ Login reads the single owner account from PostgreSQL. Environment credentials ar
 1. Set `NUXT_OWNER_EMAIL` to your email.
 2. Set `NUXT_OWNER_PASSWORD` to a password of at least 12 characters, or run `bun run auth:hash` and copy its output into `NUXT_OWNER_PASSWORD_HASH`. Set only one password option. Enclose the value in single quotes to preserve `$` characters. The seed stores a scrypt hash, never a plain password.
 3. Set `NUXT_SESSION_PASSWORD` to a random secret of at least 32 characters. For example, generate one with `bun -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
-4. Start PostgreSQL, then run `bun run db:seed`. This applies migrations and creates or updates the owner from `.env`.
+4. Start PostgreSQL, then run `bun run db:seed`. This applies migrations and creates the owner from `.env` if the account does not exist. Existing account settings are preserved.
 5. Restart Nuxt and visit `/auth`. Signing in redirects to `/`.
 
-The database enforces at most one owner account and there is no registration endpoint. All other pages use global authentication middleware, and application API routes require an owner session. The server checks the database password hash and stores the session in an encrypted, HttpOnly cookie with an eight-hour lifetime. Production requires HTTPS for secure cookies. Changing `.env` credentials alone does not change login: rerun `bun run db:seed`. Updating the database credentials invalidates old sessions on their next validation. Sign out clears the browser cookie; sealed sessions do not provide server-side revocation of copied cookies.
+The database enforces at most one owner account and there is no registration endpoint. All other pages use global authentication middleware, and application API routes require an owner session. The server checks the database password hash and stores the session in an encrypted, HttpOnly cookie with an eight-hour lifetime. Production requires HTTPS for secure cookies. Edit login credentials in **Paramètres → Compte**, confirming the current password. If you cannot sign in, set credentials in `.env` and run `bun run db:seed --update` to reset the account. Credential changes invalidate other sessions; the settings form renews the current session. Sign out clears the browser cookie; sealed sessions do not provide server-side revocation of copied cookies.
 
 To apply future schema migrations without changing credentials, run `bun run db:migrate`. Applied migrations are tracked with checksums; add a new SQL file rather than editing an applied migration. Reseeding does not delete clients or projects. Repeating the seed with unchanged credentials preserves the owner row and password hash. PostgreSQL database-user credentials (`POSTGRES_*`) remain separate from your application login.
 
@@ -136,14 +136,24 @@ Start the development server on `http://localhost:3000`:
 bun run dev
 ```
 
+## Global settings
+
+Open **Paramètres** in the header (`/settings`). Each section saves independently:
+
+- **Connexion Abby** saves, replaces, or removes the API key. Stored keys are never returned to the browser.
+- **Coordonnées du prestataire** edits the shared name, SIREN, professional address, contact email, and optional phone in `provider_profile`. The contract editor reads this profile; new contracts also prefill GDPR subcontractor and complaints contact details from it. Saved contract records are not rewritten when the profile changes; reopening a contract uses the current shared provider identity, as before.
+- **Compte** edits the login email and optionally the password (12–1024 characters), after checking the current password. This email is separate from the contract contact email. Account update attempts are limited to five per minute per IP address.
+
+Deployment initialization preserves account changes. `bun run db:seed --update` is an explicit recovery action that reapplies credentials from the environment.
+
 ## Abby client synchronization
 
 1. Create an API key in [Abby integrations](https://my.app-abby.com/settings/integrations).
 2. Run `bun run db:migrate` to create the singleton `abby_settings` row (migration `011_abby_settings.sql`).
-3. Set `abby_settings.api_key` for `id = 1` using your private database connection, then start `bun run dev`.
+3. Start `bun run dev`, sign in, and open **Paramètres → Connexion Abby** to save your API key.
 4. Sign in and click **Synchroniser les clients** to import immediately.
 
-For example, run this SQL through your database administration tool, replacing the placeholder with your key:
+You can also update the key through your private database administration tool:
 
 ```sql
 UPDATE abby_settings

@@ -199,6 +199,93 @@ describe('owner authentication', () => {
     expect((await fetch('/api/private')).status).toBe(401)
     expect((await fetch('/api/clients')).status).toBe(401)
     expect((await fetch('/api/clients/sync', { method: 'POST' })).status).toBe(401)
+    expect((await fetch('/api/settings')).status).toBe(401)
+    expect((await fetch('/api/settings/abby', { method: 'PUT' })).status).toBe(401)
+    expect((await fetch('/api/settings/provider', { method: 'PUT' })).status).toBe(401)
+    expect((await fetch('/api/settings/account', { method: 'PUT' })).status).toBe(401)
+  })
+
+  it('shows settings with masked secrets and saves or clears the Abby key', async () => {
+    const cookie = sessionCookie(await login())
+    const headers = { cookie, 'Content-Type': 'application/json' }
+    const key = 'settings-private-abby-key'
+    try {
+      expect((await fetch('/settings', { headers: { cookie } })).status).toBe(200)
+      const rejected = await fetch('/api/settings/abby', {
+        method: 'PUT', headers: { ...headers, Origin: 'https://other.example.test' }, body: JSON.stringify({ apiKey: key })
+      })
+      expect(rejected.status).toBe(403)
+      expect((await fetch('/api/settings/abby', { method: 'PUT', headers, body: JSON.stringify({ apiKey: key }) })).status).toBe(200)
+      const response = await fetch('/api/settings', { headers: { cookie } })
+      expect(response.headers.get('cache-control')).toBe('no-store')
+      const body = await response.text()
+      expect(body).not.toContain(key)
+      expect(body).not.toContain('password_hash')
+      expect(JSON.parse(body)).toMatchObject({ email, abbyConfigured: true })
+      const html = await (await fetch('/settings', { headers: { cookie } })).text()
+      expect(html).toContain('Coordonnées du prestataire')
+      expect(html).toContain('Mot de passe actuel')
+      expect(html).not.toContain(key)
+      expect((await fetch('/api/settings/abby', { method: 'PUT', headers, body: JSON.stringify({ apiKey: '' }) })).status).toBe(200)
+      expect((await (await fetch('/api/settings', { headers: { cookie } })).json()).abbyConfigured).toBe(false)
+    } finally {
+      await database.sql`UPDATE abby_settings SET api_key = '' WHERE id = 1`
+    }
+  })
+
+  it('saves provider settings and uses them when prefilling contracts', async () => {
+    const cookie = sessionCookie(await login())
+    const headers = { cookie, 'Content-Type': 'application/json' }
+    const [original] = await database.sql`SELECT name, siren, address, email, phone FROM provider_profile WHERE id = 1`
+    const profile = { name: 'Atelier Test EI', siren: '123456789', address: '12 rue du Test, 69003 Lyon', email: 'contact@example.test', phone: '+33400000000' }
+    try {
+      expect((await fetch('/api/settings/provider', { method: 'PUT', headers, body: JSON.stringify({ ...profile, siren: 'bad' }) })).status).toBe(400)
+      expect((await fetch('/api/settings/provider', { method: 'PUT', headers, body: JSON.stringify(profile) })).status).toBe(200)
+      const settings = await (await fetch('/api/settings', { headers: { cookie } })).json()
+      expect(settings.provider).toEqual(profile)
+      const { createContract } = await import('../../shared/utils/contracts')
+      const { contractClient } = await import('../helpers/contracts')
+      const contract = createContract(contractClient, settings.provider)
+      expect(contract.fields).toMatchObject({
+        'prestataire.nom': profile.name,
+        'prestataire.siren': profile.siren,
+        'prestataire.email': profile.email,
+        'prestataire.adresse': profile.address,
+        'rgpd.sous_traitant': profile.name,
+        'reclamations': `${profile.email} — ${profile.address}`
+      })
+    } finally {
+      await database.sql`UPDATE provider_profile SET ${database.sql(original!)} WHERE id = 1`
+    }
+  })
+
+  it('requires the current password to edit account settings and renews only the active session', async () => {
+    const cookie = sessionCookie(await login())
+    const otherCookie = sessionCookie(await login())
+    const headers = { cookie, 'Content-Type': 'application/json' }
+    const changed = { email: 'changed@example.test', currentPassword: password, newPassword: 'changed-settings-password' }
+    try {
+      const invalid = await fetch('/api/settings/account', {
+        method: 'PUT', headers, body: JSON.stringify({ ...changed, currentPassword: 'wrong-password' })
+      })
+      expect(invalid.status).toBe(403)
+      const short = await fetch('/api/settings/account', { method: 'PUT', headers, body: JSON.stringify({ ...changed, newPassword: 'short' }) })
+      expect(short.status).toBe(400)
+      const response = await fetch('/api/settings/account', { method: 'PUT', headers, body: JSON.stringify(changed) })
+      expect(response.status).toBe(200)
+      expect(await response.json()).toEqual({ email: changed.email })
+      const updatedCookie = sessionCookie(response)
+      const current = await fetch('/api/settings', { headers: { cookie: updatedCookie } })
+      expect(current.status).toBe(200)
+      expect((await current.json()).email).toBe(changed.email)
+      expect((await fetch('/api/settings', { headers: { cookie: otherCookie } })).status).toBe(401)
+      expect((await login({ email: changed.email, password: changed.newPassword })).status).toBe(200)
+      const [owner] = await database.sql`SELECT password_hash FROM "user" WHERE id = 1`
+      expect(owner!.password_hash).not.toBe(changed.newPassword)
+      expect(await new Scrypt({}).verify(owner!.password_hash, changed.newPassword)).toBe(true)
+    } finally {
+      await seedOwner(database.sql, { email, hash })
+    }
   })
 
   it('lists clients from the DB without exposing Abby credentials', async () => {
