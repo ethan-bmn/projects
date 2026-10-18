@@ -2,7 +2,11 @@
 
 ## Purpose
 
-This repository contains Markdown templates for generating French web development, hosting, maintenance, backup, and data processing agreements.
+This directory contains the Markdown templates for generating French web development, hosting, maintenance, backup, and data processing agreements:
+
+- `contract_template.md` — main contract
+- `hosting_appendix_template.md` — technical hosting appendix
+- `gdpr_subcontracting_agreement_template.md` — GDPR data-processing agreement
 
 **This README is the implementation specification for Codex.** Implement the behavior described below. Do not silently change contractual language, infer legal facts, or generate a signable document when mandatory information is missing.
 
@@ -380,10 +384,10 @@ The generator must reject signable output when:
 Prefer actionable diagnostics:
 
 ```text
-ERROR templates/main-contract.md:110:
+ERROR templates/contract_template.md:110:
 Unclosed option block: HÉBERGEMENT
 
-ERROR templates/dpa.md:42:
+ERROR templates/gdpr_subcontracting_agreement_template.md:42:
 Missing required value: rgpd.finalites
 
 ERROR configuration:
