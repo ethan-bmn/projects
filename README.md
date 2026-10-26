@@ -20,6 +20,12 @@ Annex references are generated from their type and the current contract referenc
 
 Every contract input, service choice, and verification checkbox has an information button with a French explanation and an example. Open it by click, touch, or keyboard; dismiss it with Escape or by clicking outside. Examples are guidance only and do not fill or modify the form.
 
+## Prospects
+
+The **Prospects** page at `/prospects` stores sales contacts in a separate PostgreSQL table. Add, edit, delete, or search prospects by name, activity domain, email, or phone. A name, activity domain, and at least one contact method are required; the current website URL is optional and must use HTTP or HTTPS. Prospects are never sent to Abby and are preserved during client synchronization.
+
+Apply migration `012_prospects.sql` with `bun run db:migrate` before using the page. The page and API use the existing owner authentication.
+
 ## Starter Template
 
 [![Nuxt UI](https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?logo=nuxt&labelColor=020420)](https://ui.nuxt.com)

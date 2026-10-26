@@ -31,6 +31,7 @@ useSeoMeta({
     <UHeader
       v-if="loggedIn"
       :toggle="false"
+      :ui="{ root: 'h-auto', container: 'h-(--ui-header-height)' }"
     >
       <template #left>
         <NuxtLink
@@ -39,6 +40,29 @@ useSeoMeta({
         >
           Abby Projects
         </NuxtLink>
+      </template>
+
+      <template #bottom>
+        <UContainer>
+          <nav
+            aria-label="Navigation principale"
+            class="flex gap-1 border-t border-default py-2"
+          >
+            <UButton
+              to="/"
+              label="Clients"
+              color="neutral"
+              variant="ghost"
+              exact
+            />
+            <UButton
+              to="/prospects"
+              label="Prospects"
+              color="neutral"
+              variant="ghost"
+            />
+          </nav>
+        </UContainer>
       </template>
 
       <template #right>
@@ -55,8 +79,11 @@ useSeoMeta({
         <UColorModeButton />
         <UButton
           label="Se déconnecter"
+          aria-label="Se déconnecter"
+          icon="i-lucide-log-out"
           color="neutral"
           variant="ghost"
+          :ui="{ label: 'hidden sm:inline' }"
           :loading="signingOut"
           @click="signOut"
         />
