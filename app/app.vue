@@ -42,6 +42,29 @@ useSeoMeta({
         </NuxtLink>
       </template>
 
+      <template #bottom>
+        <UContainer>
+          <nav
+            aria-label="Navigation principale"
+            class="flex gap-1 border-t border-default py-2"
+          >
+            <UButton
+              to="/"
+              label="Clients"
+              color="neutral"
+              variant="ghost"
+              exact
+            />
+            <UButton
+              to="/prospects"
+              label="Prospects"
+              color="neutral"
+              variant="ghost"
+            />
+          </nav>
+        </UContainer>
+      </template>
+
       <template #right>
         <span class="hidden text-sm text-muted sm:block">{{ user?.email }}</span>
         <UButton

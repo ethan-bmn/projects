@@ -74,19 +74,6 @@ function sessionCookie(response: Response) {
 }
 
 describe('owner authentication', () => {
-  it('does not expose the retired prospects page or API', async () => {
-    const cookie = sessionCookie(await login())
-    const headers = { cookie, 'Content-Type': 'application/json' }
-    const home = await fetch('/', { headers: { cookie } })
-    expect(await home.text()).not.toContain('href="/prospects"')
-    expect((await fetch('/prospects', { headers: { cookie } })).status).toBe(404)
-    expect((await fetch('/api/prospects', { headers: { cookie } })).status).toBe(404)
-    expect((await fetch('/api/prospects', { method: 'POST', headers, body: '{}' })).status).toBe(404)
-    const item = '/api/prospects/00000000-0000-0000-0000-000000000001'
-    expect((await fetch(item, { method: 'PUT', headers, body: '{}' })).status).toBe(404)
-    expect((await fetch(item, { method: 'DELETE', headers })).status).toBe(404)
-  })
-
   it('exports saved ChartDB schemas as SVG through protected customer-scoped routes', async () => {
     const cookie = sessionCookie(await login())
     const [customer] = await database.sql`INSERT INTO clients (kind, abby_id, name) VALUES ('individual', 'svg-export-person', 'SVG person') RETURNING id`
