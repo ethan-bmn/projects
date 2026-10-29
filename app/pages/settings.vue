@@ -1,21 +1,18 @@
 <script setup lang="ts">
 import type { GlobalSettings } from '#shared/types/settings'
-import type { ProviderProfile } from '#shared/types/provider'
 
 useSeoMeta({ title: 'Paramètres | Abby Projects' })
 
 const { data, error, refresh } = await useFetch<GlobalSettings>('/api/settings')
 const { fetch: refreshSession } = useUserSession()
-const provider = reactive<ProviderProfile>({ name: '', siren: '', address: '', email: '', phone: '' })
 const account = reactive({ email: '', currentPassword: '', newPassword: '', confirmation: '' })
 const apiKey = ref('')
-const pending = reactive({ provider: false, account: false, abby: false })
-const errors = reactive({ provider: '', account: '', abby: '' })
-const messages = reactive({ provider: '', account: '', abby: '' })
+const pending = reactive({ account: false, abby: false })
+const errors = reactive({ account: '', abby: '' })
+const messages = reactive({ account: '', abby: '' })
 
 watch(data, (settings) => {
   if (!settings) return
-  Object.assign(provider, settings.provider)
   account.email = settings.email
 }, { immediate: true })
 
@@ -34,12 +31,6 @@ async function save(section: Section, action: () => Promise<void>) {
   } finally {
     pending[section] = false
   }
-}
-
-function saveProvider() {
-  return save('provider', async () => {
-    await $fetch('/api/settings/provider', { method: 'PUT', body: { ...provider } })
-  })
 }
 
 function saveAbby(disable = false) {
@@ -167,121 +158,6 @@ function saveAccount() {
                 @click="saveAbby(true)"
               />
             </div>
-          </form>
-        </section>
-
-        <section
-          id="provider"
-          aria-labelledby="provider-title"
-          class="py-8"
-        >
-          <h2
-            id="provider-title"
-            class="text-lg font-semibold text-highlighted"
-          >
-            Coordonnées du prestataire
-          </h2>
-          <p class="mt-2 text-sm text-muted">
-            Ces coordonnées sont utilisées dans les contrats. L’adresse e-mail de contact est indépendante de votre identifiant de connexion.
-          </p>
-          <form
-            class="mt-5 space-y-4"
-            @submit.prevent="saveProvider"
-          >
-            <fieldset
-              :disabled="pending.provider"
-              class="space-y-4"
-            >
-              <UFormField
-                label="Nom ou raison sociale"
-                name="provider-name"
-              >
-                <UInput
-                  v-model="provider.name"
-                  name="provider-name"
-                  autocomplete="organization"
-                  :maxlength="200"
-                  class="w-full"
-                  required
-                />
-              </UFormField>
-              <UFormField
-                label="SIREN"
-                name="provider-siren"
-              >
-                <UInput
-                  v-model="provider.siren"
-                  name="provider-siren"
-                  inputmode="numeric"
-                  pattern="[0-9]{9}"
-                  :maxlength="9"
-                  class="w-full sm:w-64"
-                  required
-                />
-              </UFormField>
-              <UFormField
-                label="Adresse professionnelle"
-                name="provider-address"
-              >
-                <UTextarea
-                  v-model="provider.address"
-                  name="provider-address"
-                  autocomplete="street-address"
-                  :maxlength="2000"
-                  :rows="3"
-                  class="w-full"
-                  required
-                />
-              </UFormField>
-              <div class="grid gap-4 sm:grid-cols-2">
-                <UFormField
-                  label="Adresse e-mail de contact"
-                  name="provider-email"
-                >
-                  <UInput
-                    v-model="provider.email"
-                    name="provider-email"
-                    type="email"
-                    autocomplete="email"
-                    :maxlength="254"
-                    class="w-full"
-                    required
-                  />
-                </UFormField>
-                <UFormField
-                  label="Téléphone (facultatif)"
-                  name="provider-phone"
-                >
-                  <UInput
-                    v-model="provider.phone"
-                    name="provider-phone"
-                    type="tel"
-                    autocomplete="tel"
-                    :maxlength="50"
-                    class="w-full"
-                  />
-                </UFormField>
-              </div>
-            </fieldset>
-            <p
-              v-if="errors.provider"
-              role="alert"
-              class="text-sm text-error"
-            >
-              {{ errors.provider }}
-            </p>
-            <p
-              v-if="messages.provider"
-              role="status"
-              class="text-sm text-success"
-            >
-              {{ messages.provider }}
-            </p>
-            <UButton
-              type="submit"
-              label="Enregistrer les coordonnées"
-              :loading="pending.provider"
-            />
           </form>
         </section>
 

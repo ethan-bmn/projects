@@ -1,17 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { validateAbbyKey, validateAccount, validateProvider } from '../../server/services/settings'
-
-const profile = { name: 'Atelier Test', siren: '123456789', address: '12 rue du Test', email: 'contact@example.test', phone: '' }
+import { validateAbbyKey, validateAccount } from '../../server/services/settings'
 
 describe('settings validation', () => {
-  it('normalizes contact details without requiring an optional phone', () => {
-    expect(validateProvider({ ...profile, name: ' Atelier Test ', email: ' CONTACT@example.test ' })).toEqual(profile)
-  })
-
-  it.each([null, [], { ...profile, siren: '123' }, { ...profile, email: 'invalid' }, { ...profile, name: ' ' }, { ...profile, address: 'x'.repeat(2001) }])('rejects invalid provider details: %j', (input) => {
-    expect(() => validateProvider(input)).toThrow()
-  })
-
   it('allows clearing or rotating a key and rejects invalid header characters', () => {
     expect(validateAbbyKey({ apiKey: '' })).toBe('')
     expect(validateAbbyKey({ apiKey: ' new-key ' })).toBe('new-key')

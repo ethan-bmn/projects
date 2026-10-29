@@ -7,7 +7,6 @@ import { syncClients } from '../../server/services/client-sync'
 import { createTestDatabase } from '../helpers/database'
 import { getClientProjects, createProject, getProject } from '../../server/services/projects'
 import { projectInput } from '../helpers/projects'
-import { createContract } from '../../shared/utils/contracts'
 
 const database = await createTestDatabase()
 afterAll(database.cleanup)
@@ -20,20 +19,19 @@ beforeEach(async () => {
 })
 
 describe('persisted client synchronization', () => {
-  it('stores, updates, and clears addresses while preserving saved contracts', async () => {
+  it('stores, updates, and clears addresses while preserving saved projects', async () => {
     const address = { address: '12 rue du Test', complement: 'Étage 2', zipCode: '69003', city: 'Lyon', state: null, country: 'FR' }
     await syncClients(database.sql, config, { fetchClients: async () => [{ ...item, billingAddress: address }] })
     const [row] = await database.sql`SELECT id, billing_address FROM clients`
     expect(row!.billing_address).toEqual(address)
     const detail = await getClientProjects(database.sql, row!.id)
     expect(detail.client.billingAddress).toEqual(address)
-    const contract = createContract(detail.client)
-    const project = await createProject(database.sql, row!.id, { ...projectInput(), contract })
+    const project = await createProject(database.sql, row!.id, projectInput())
     const moved = { ...address, city: 'Paris', zipCode: '75001' }
     await syncClients(database.sql, config, { fetchClients: async () => [{ ...item, billingAddress: moved }] })
     const updated = await getProject(database.sql, row!.id, project.id)
     expect(updated.client.billingAddress).toEqual(moved)
-    expect(updated.project.contract).toEqual(contract)
+    expect(updated.project).toEqual(project)
     await syncClients(database.sql, config, { fetchClients: async () => [item] })
     expect((await getClientProjects(database.sql, row!.id)).client.billingAddress).toBeNull()
   })

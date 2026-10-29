@@ -1,10 +1,10 @@
+import { readFile } from 'node:fs/promises'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { createProject, getClientProjects, getProject, updateProject } from '../../server/services/projects'
 import { syncClients } from '../../server/services/client-sync'
 import { createTestDatabase } from '../helpers/database'
 import { projectInput } from '../helpers/projects'
 import { projectDiagrams } from '../helpers/diagrams'
-import { createContract } from '../../shared/utils/contracts'
 
 const database = await createTestDatabase()
 afterAll(database.cleanup)
@@ -22,16 +22,26 @@ beforeEach(async () => {
 })
 
 describe('customer projects', () => {
-  it('persists one contract per project and preserves it through specification edits and client synchronization', async () => {
-    const created = await createProject(database.sql, businessId, projectInput())
-    const detail = await getProject(database.sql, businessId, created.id)
-    const contract = createContract(detail.client)
-    await updateProject(database.sql, businessId, created.id, { ...projectInput(), contract })
-    expect((await getProject(database.sql, businessId, created.id)).project.contract).toEqual(contract)
-    const updated = await updateProject(database.sql, businessId, created.id, projectInput('Nouveau cahier des charges'))
-    expect(updated.contract).toEqual(contract)
-    await expect(updateProject(database.sql, individualId, created.id, { ...projectInput(), contract })).rejects.toMatchObject({ statusCode: 404 })
-    expect((await updateProject(database.sql, businessId, created.id, { ...projectInput(), contract: null })).contract).toBeNull()
+  it('removes retired storage while preserving project specifications and diagrams', async () => {
+    const migration = await readFile(new URL('../../database/migrations/013_remove_contracts.sql', import.meta.url), 'utf8')
+    const input = projectInput()
+    const diagrams = projectDiagrams()
+    await database.sql.begin(async (sql) => {
+      await sql`CREATE SCHEMA retirement_test`
+      await sql`SET LOCAL search_path TO retirement_test`
+      await sql`CREATE TABLE projects (id integer PRIMARY KEY, name text, specification jsonb, diagrams jsonb, contract jsonb)`
+      await sql`CREATE TABLE provider_profile (id integer PRIMARY KEY)`
+      await sql`INSERT INTO provider_profile VALUES (1)`
+      await sql`
+        INSERT INTO projects (id, name, specification, diagrams, contract)
+        VALUES (1, ${input.name}, ${sql.json(input.specification)}, ${sql.json(diagrams)}, '{"quote": {"data": "retired-attachment"}}')
+      `
+      await sql.unsafe(migration)
+      expect(await sql`SELECT * FROM projects`).toEqual([{ id: 1, name: input.name, specification: input.specification, diagrams }])
+      const [removed] = await sql`SELECT to_regclass('retirement_test.provider_profile') AS name`
+      expect(removed!.name).toBeNull()
+      await sql`DROP SCHEMA retirement_test CASCADE`
+    })
   })
 
   it('stores diagrams, preserves them for older callers, and clears them explicitly', async () => {

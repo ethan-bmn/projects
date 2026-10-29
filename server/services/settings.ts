@@ -1,6 +1,5 @@
 import type postgres from 'postgres'
 import { Scrypt } from '@adonisjs/hash/drivers/scrypt'
-import type { ProviderProfile } from '../../shared/types/provider'
 import type { GlobalSettings } from '../../shared/types/settings'
 
 export class SettingsError extends Error {
@@ -27,19 +26,6 @@ function email(value: unknown) {
   return result
 }
 
-export function validateProvider(value: unknown): ProviderProfile {
-  const input = object(value)
-  const profile = {
-    name: text(input.name, 'Nom', 200),
-    siren: text(input.siren, 'SIREN', 9),
-    address: text(input.address, 'Adresse', 2000),
-    email: email(input.email),
-    phone: text(input.phone, 'Téléphone', 50, true)
-  }
-  if (!/^\d{9}$/.test(profile.siren)) throw new SettingsError('Le SIREN doit contenir 9 chiffres.')
-  return profile
-}
-
 export function validateAbbyKey(value: unknown) {
   const apiKey = text(object(value).apiKey, 'Clé API Abby', 8192, true)
   if (apiKey && !/^[\x21-\x7E]+$/.test(apiKey)) throw new SettingsError('La clé API Abby contient des caractères invalides.')
@@ -60,28 +46,15 @@ export function validateAccount(value: unknown) {
 
 export async function getGlobalSettings(sql: postgres.Sql): Promise<GlobalSettings> {
   const [row] = await sql`
-    SELECT u.email, a.api_key ~ '[^[:space:]]' AS abby_configured,
-      p.name, p.siren, p.address, p.email AS provider_email, p.phone
-    FROM "user" u CROSS JOIN abby_settings a CROSS JOIN provider_profile p
-    WHERE u.id = 1 AND a.id = 1 AND p.id = 1
+    SELECT u.email, a.api_key ~ '[^[:space:]]' AS abby_configured
+    FROM "user" u CROSS JOIN abby_settings a
+    WHERE u.id = 1 AND a.id = 1
   `
   if (!row) throw new SettingsError('Les paramètres ne sont pas initialisés. Appliquez les migrations.', 503)
   return {
     email: row.email,
-    abbyConfigured: row.abby_configured,
-    provider: { name: row.name, siren: row.siren, address: row.address, email: row.provider_email, phone: row.phone }
+    abbyConfigured: row.abby_configured
   }
-}
-
-export async function saveProvider(sql: postgres.Sql, value: unknown) {
-  const profile = validateProvider(value)
-  await sql`
-    INSERT INTO provider_profile (id, name, siren, address, email, phone)
-    VALUES (1, ${profile.name}, ${profile.siren}, ${profile.address}, ${profile.email}, ${profile.phone})
-    ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, siren = EXCLUDED.siren,
-      address = EXCLUDED.address, email = EXCLUDED.email, phone = EXCLUDED.phone, updated_at = now()
-  `
-  return { success: true }
 }
 
 export async function saveAbbyKey(sql: postgres.Sql, value: unknown) {

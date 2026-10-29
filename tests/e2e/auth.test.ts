@@ -7,7 +7,6 @@ import { migrateDatabase, ownerSeedCredentials, seedOwner } from '../../database
 import { createTestDatabase } from '../helpers/database'
 import { projectInput } from '../helpers/projects'
 import { projectDiagrams } from '../helpers/diagrams'
-import { auditContract, fullContract } from '../helpers/contracts'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 
@@ -201,7 +200,6 @@ describe('owner authentication', () => {
     expect((await fetch('/api/clients/sync', { method: 'POST' })).status).toBe(401)
     expect((await fetch('/api/settings')).status).toBe(401)
     expect((await fetch('/api/settings/abby', { method: 'PUT' })).status).toBe(401)
-    expect((await fetch('/api/settings/provider', { method: 'PUT' })).status).toBe(401)
     expect((await fetch('/api/settings/account', { method: 'PUT' })).status).toBe(401)
   })
 
@@ -223,39 +221,13 @@ describe('owner authentication', () => {
       expect(body).not.toContain('password_hash')
       expect(JSON.parse(body)).toMatchObject({ email, abbyConfigured: true })
       const html = await (await fetch('/settings', { headers: { cookie } })).text()
-      expect(html).toContain('Coordonnées du prestataire')
+      expect(html).not.toContain('Coordonnées du prestataire')
       expect(html).toContain('Mot de passe actuel')
       expect(html).not.toContain(key)
       expect((await fetch('/api/settings/abby', { method: 'PUT', headers, body: JSON.stringify({ apiKey: '' }) })).status).toBe(200)
       expect((await (await fetch('/api/settings', { headers: { cookie } })).json()).abbyConfigured).toBe(false)
     } finally {
       await database.sql`UPDATE abby_settings SET api_key = '' WHERE id = 1`
-    }
-  })
-
-  it('saves provider settings and uses them when prefilling contracts', async () => {
-    const cookie = sessionCookie(await login())
-    const headers = { cookie, 'Content-Type': 'application/json' }
-    const [original] = await database.sql`SELECT name, siren, address, email, phone FROM provider_profile WHERE id = 1`
-    const profile = { name: 'Atelier Test EI', siren: '123456789', address: '12 rue du Test, 69003 Lyon', email: 'contact@example.test', phone: '+33400000000' }
-    try {
-      expect((await fetch('/api/settings/provider', { method: 'PUT', headers, body: JSON.stringify({ ...profile, siren: 'bad' }) })).status).toBe(400)
-      expect((await fetch('/api/settings/provider', { method: 'PUT', headers, body: JSON.stringify(profile) })).status).toBe(200)
-      const settings = await (await fetch('/api/settings', { headers: { cookie } })).json()
-      expect(settings.provider).toEqual(profile)
-      const { createContract } = await import('../../shared/utils/contracts')
-      const { contractClient } = await import('../helpers/contracts')
-      const contract = createContract(contractClient, settings.provider)
-      expect(contract.fields).toMatchObject({
-        'prestataire.nom': profile.name,
-        'prestataire.siren': profile.siren,
-        'prestataire.email': profile.email,
-        'prestataire.adresse': profile.address,
-        'rgpd.sous_traitant': profile.name,
-        'reclamations': `${profile.email} — ${profile.address}`
-      })
-    } finally {
-      await database.sql`UPDATE provider_profile SET ${database.sql(original!)} WHERE id = 1`
     }
   })
 
@@ -415,31 +387,13 @@ describe('owner authentication', () => {
       const html = await page.text()
       expect(html).toContain('Cahier des charges')
       expect(html).toContain('Exporter en PDF')
-      const contractPath = `/clients/${clientId}/projects/${first.id}/contract`
-      expect(html).toContain(`href="${contractPath}"`)
-      expect(html).not.toContain('Enregistrer le contrat')
-      const contractPage = await fetch(contractPath, { headers: { cookie } })
-      expect(contractPage.status).toBe(200)
-      const contractHtml = await contractPage.text()
-      expect(contractHtml).toContain('Enregistrer le contrat')
-      expect(contractHtml).toContain('Retour au projet')
-      expect(contractHtml).toContain('Services commandés au devis')
-      expect(contractHtml).toContain('Traitement de données pour le compte du client')
-      expect(contractHtml).not.toContain('Politique complète de rétention')
-      const configured = fullContract()
-      const savedContract = await fetch(`${url}/${first.id}`, { method: 'PUT', headers, body: JSON.stringify({ ...input, contract: configured }) })
-      expect(savedContract.status).toBe(200)
-      expect((await savedContract.json()).contract).toEqual(configured)
-      const configuredHtml = await (await fetch(contractPath, { headers: { cookie } })).text()
-      expect(configuredHtml).toContain('Politique complète de rétention')
-      expect(configuredHtml).toContain('Sous-traitants ultérieurs, autorisations')
-      const simplified = auditContract()
-      expect((await fetch(`${url}/${first.id}`, { method: 'PUT', headers, body: JSON.stringify({ ...input, contract: simplified }) })).status).toBe(200)
-      const simpleHtml = await (await fetch(contractPath, { headers: { cookie } })).text()
-      expect(simpleHtml).not.toContain('Politique complète de rétention')
-      expect(simpleHtml).not.toContain('Sous-traitants ultérieurs, autorisations')
-      expect((await fetch(`/clients/${otherId}/projects/${first.id}/contract`, { headers: { cookie } })).status).toBe(404)
-      expect((await fetch(contractPath, { redirect: 'manual' })).headers.get('location')).toBe('/auth')
+      expect(html).not.toContain('Créer le contrat')
+      expect(html).not.toContain('Exporter le contrat PDF')
+      expect(persisted.project).not.toHaveProperty('contract')
+      const removedPage = await fetch(`/clients/${clientId}/projects/${first.id}/contract`, { headers: { cookie } })
+      expect(removedPage.status).toBe(404)
+      const rejectedContract = await fetch(`${url}/${first.id}`, { method: 'PUT', headers, body: JSON.stringify({ ...input, contract: {} }) })
+      expect(rejectedContract.status).toBe(400)
       const anonymousPage = await fetch(`/clients/${clientId}/projects/new`, { redirect: 'manual' })
       expect(anonymousPage.headers.get('location')).toBe('/auth')
     } finally {

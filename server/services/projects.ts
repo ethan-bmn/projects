@@ -4,9 +4,6 @@ import { projectSections } from '../../shared/types/projects'
 import type { ClientProjects, Project, ProjectDetail, ProjectInput, ProjectSpecification, ProjectSummary } from '../../shared/types/projects'
 import type { ProjectDiagrams } from '../../shared/types/diagrams'
 import { validateDiagrams } from '../../shared/utils/diagrams'
-import { validateContract } from '../../shared/utils/contracts'
-import type { ProjectContract } from '../../shared/types/contracts'
-import type { ProviderProfile } from '../../shared/types/provider'
 
 export class ProjectError extends Error {
   constructor(message: string, public statusCode = 400) {
@@ -17,6 +14,9 @@ export class ProjectError extends Error {
 export function validateProjectInput(value: unknown): ProjectInput {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new ProjectError('Le projet est invalide.')
   const input = value as Record<string, unknown>
+  if (Object.keys(input).some(key => !['name', 'specification', 'diagrams'].includes(key))) {
+    throw new ProjectError('Le projet contient des champs non pris en charge.')
+  }
   if (typeof input.name !== 'string' || !input.name.trim() || input.name.trim().length > 200) {
     throw new ProjectError('Le nom du projet doit contenir entre 1 et 200 caractères.')
   }
@@ -40,8 +40,7 @@ export function validateProjectInput(value: unknown): ProjectInput {
   try {
     return {
       name: input.name.trim(), specification,
-      ...(input.diagrams !== undefined ? { diagrams: validateDiagrams(input.diagrams) } : {}),
-      ...(input.contract !== undefined ? { contract: validateContract(input.contract) } : {})
+      ...(input.diagrams !== undefined ? { diagrams: validateDiagrams(input.diagrams) } : {})
     }
   } catch (error) {
     throw new ProjectError(error instanceof Error ? error.message : 'Les diagrammes sont invalides.')
@@ -54,7 +53,6 @@ interface ProjectRow {
   name: string
   specification: ProjectSpecification
   diagrams: ProjectDiagrams
-  contract: ProjectContract | null
   created_at: Date
   updated_at: Date
 }
@@ -64,7 +62,6 @@ function project(row: ProjectRow): Project {
     id: row.id, clientId: row.client_id, name: row.name,
     specification: Object.fromEntries(projectSections.map(section => [section.key, row.specification[section.key] ?? null])) as ProjectSpecification,
     diagrams: row.diagrams,
-    contract: row.contract,
     createdAt: row.created_at.toISOString(), updatedAt: row.updated_at.toISOString()
   }
 }
@@ -78,12 +75,6 @@ async function client(sql: postgres.Sql, clientId: string): Promise<Client & { a
     id: row.id, abbyId: row.abby_id, kind: row.kind, name: row.name,
     emails: row.emails, commercialName: row.commercial_name, billingAddress: row.billing_address, active: row.active
   }
-}
-
-async function provider(sql: postgres.Sql): Promise<ProviderProfile> {
-  const [row] = await sql`SELECT name, siren, address, email, phone FROM provider_profile WHERE id = 1`
-  if (!row) throw new ProjectError('Le profil du prestataire est introuvable.', 503)
-  return { name: row.name, siren: row.siren, address: row.address, email: row.email, phone: row.phone }
 }
 
 export async function getClientProjects(sql: postgres.Sql, clientId: string): Promise<ClientProjects> {
@@ -101,8 +92,8 @@ export async function getClientProjects(sql: postgres.Sql, clientId: string): Pr
 
 export async function createProject(sql: postgres.Sql, clientId: string, input: ProjectInput): Promise<Project> {
   const [row] = await sql<ProjectRow[]>`
-    INSERT INTO projects (client_id, name, specification, diagrams, contract)
-    SELECT id, ${input.name}, ${sql.json(input.specification)}, ${sql.json(input.diagrams ?? { database: null, wbs: [] })}, ${input.contract ? sql.json(input.contract) : null} FROM clients WHERE id = ${clientId}
+    INSERT INTO projects (client_id, name, specification, diagrams)
+    SELECT id, ${input.name}, ${sql.json(input.specification)}, ${sql.json(input.diagrams ?? { database: null, wbs: [] })} FROM clients WHERE id = ${clientId}
     RETURNING *
   `
   if (!row) throw new ProjectError('Client introuvable.', 404)
@@ -113,14 +104,13 @@ export async function getProject(sql: postgres.Sql, clientId: string, projectId:
   const customer = await client(sql, clientId)
   const [row] = await sql<ProjectRow[]>`SELECT * FROM projects WHERE id = ${projectId} AND client_id = ${clientId}`
   if (!row) throw new ProjectError('Projet introuvable pour ce client.', 404)
-  return { client: customer, provider: await provider(sql), project: project(row) }
+  return { client: customer, project: project(row) }
 }
 
 export async function updateProject(sql: postgres.Sql, clientId: string, projectId: string, input: ProjectInput): Promise<Project> {
   const [row] = await sql<ProjectRow[]>`
     UPDATE projects SET name = ${input.name}, specification = ${sql.json(input.specification)},
       diagrams = CASE WHEN ${input.diagrams !== undefined} THEN ${sql.json(input.diagrams ?? { database: null, wbs: [] })} ELSE diagrams END,
-      contract = CASE WHEN ${input.contract !== undefined} THEN ${input.contract ? sql.json(input.contract) : null} ELSE contract END,
       updated_at = clock_timestamp()
     WHERE id = ${projectId} AND client_id = ${clientId} RETURNING *
   `

@@ -4,6 +4,10 @@ import { projectInput } from '../helpers/projects'
 import { projectSections } from '../../shared/types/projects'
 
 describe('project input validation', () => {
+  it.each([null, {}, { version: 2 }])('rejects retired contract input: %j', (contract) => {
+    expect(() => validateProjectInput({ ...projectInput(), contract })).toThrow('champs non pris en charge')
+  })
+
   it('accepts the specification with optional DB architecture and preserves multiline text', () => {
     const input = projectInput('  Refonte du site  ')
     const result = validateProjectInput(input)
