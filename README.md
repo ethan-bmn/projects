@@ -4,7 +4,13 @@ This project provides a private workspace with one secure account for its owner,
 
 See [the project design](docs/project-design.md) for the data model, access controls, and synchronization behavior. PostgreSQL runs locally through Docker Compose. Owner login uses a database account seeded from `.env`. Abby clients are synchronized daily; their projects and specifications remain local.
 
-Apply pending migrations with `bun run db:migrate`. Migration `013_remove_contracts.sql` removes stored contract drafts, quote attachments, and the former provider profile. Migration `014_remove_prospects.sql` removes the former sales prospect records. Historical migration files remain unchanged so existing installations can upgrade.
+Apply pending migrations with `bun run db:migrate`. Migration `013_remove_contracts.sql` removes stored contract drafts, quote attachments, and the former provider profile. Historical migration files remain unchanged so existing installations can upgrade.
+
+## Prospects
+
+The **Prospects** page at `/prospects` stores sales contacts in a separate PostgreSQL table. Add, edit, delete, or search prospects by name, activity domain, email, or phone. A name, activity domain, and at least one contact method are required; the current website URL is optional and must use HTTP or HTTPS. Prospects are never sent to Abby and are preserved during client synchronization.
+
+Apply migration `012_prospects.sql` with `bun run db:migrate` before using the page. The page and API use the existing owner authentication.
 
 ## Starter Template
 
