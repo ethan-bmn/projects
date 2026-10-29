@@ -8,9 +8,9 @@ Apply pending migrations with `bun run db:migrate`. Migration `013_remove_contra
 
 ## Prospects
 
-The **Prospects** page at `/prospects` stores sales contacts in a separate PostgreSQL table. Add, edit, delete, or search prospects by name, activity domain, email, or phone. A name, activity domain, and at least one contact method are required; the current website URL is optional and must use HTTP or HTTPS. Prospects are never sent to Abby and are preserved during client synchronization.
+The **Prospects** page at `/prospects` stores sales contacts in a separate PostgreSQL table. Add, edit, delete, or search prospects by name, activity domain, email, phone, or idea. The optional multiline **Idée** field records what you would like to propose or build for each prospect (up to 5,000 characters). A name, activity domain, and at least one contact method are required; the current website URL is optional and must use HTTP or HTTPS. Prospects are never sent to Abby and are preserved during client synchronization.
 
-Apply migration `012_prospects.sql` with `bun run db:migrate` before using the page. The page and API use the existing owner authentication.
+Apply migrations `012_prospects.sql` and `014_prospect_idea.sql` with `bun run db:migrate` before using the page. The page and API use the existing owner authentication.
 
 ## Starter Template
 
