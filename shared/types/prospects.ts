@@ -3,6 +3,7 @@ export interface ProspectInput {
   email: string
   phone: string
   domain: string
+  idea: string
   websiteUrl: string | null
 }
 

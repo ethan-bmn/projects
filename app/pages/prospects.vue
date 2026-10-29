@@ -18,13 +18,13 @@ const notice = ref('')
 const deleting = ref(false)
 const deleteTarget = ref<Prospect | null>(null)
 const deleteError = ref('')
-const form = reactive({ name: '', email: '', phone: '', domain: '', websiteUrl: '' })
+const form = reactive({ name: '', email: '', phone: '', domain: '', websiteUrl: '', idea: '' })
 
 function openForm(prospect?: Prospect) {
   editingId.value = prospect?.id ?? null
   Object.assign(form, {
     name: prospect?.name ?? '', email: prospect?.email ?? '', phone: prospect?.phone ?? '',
-    domain: prospect?.domain ?? '', websiteUrl: prospect?.websiteUrl ?? ''
+    domain: prospect?.domain ?? '', websiteUrl: prospect?.websiteUrl ?? '', idea: prospect?.idea ?? ''
   })
   formError.value = ''
   formOpen.value = true
@@ -125,7 +125,7 @@ async function remove() {
       >
         <UInput
           v-model="searchInput"
-          placeholder="Nom, domaine, e-mail ou téléphone"
+          placeholder="Nom, domaine, contact ou idée"
           maxlength="200"
           class="w-full"
         />
@@ -176,6 +176,12 @@ async function remove() {
                 scope="col"
                 class="px-4 py-3 font-medium"
               >
+                Idée
+              </th>
+              <th
+                scope="col"
+                class="px-4 py-3 font-medium"
+              >
                 Actions
               </th>
             </tr>
@@ -183,7 +189,7 @@ async function remove() {
           <tbody>
             <tr v-if="error || status === 'pending' || !data?.prospects.length">
               <td
-                colspan="5"
+                colspan="6"
                 class="px-6 py-12 text-center"
               >
                 <template v-if="error">
@@ -252,6 +258,9 @@ async function remove() {
                     v-else
                     class="text-muted"
                   >—</span>
+                </td>
+                <td class="max-w-72 min-w-48 px-4 py-3 whitespace-pre-line text-muted wrap-anywhere">
+                  {{ prospect.idea || '—' }}
                 </td>
                 <td class="px-4 py-3">
                   <div class="flex gap-1">
@@ -382,6 +391,20 @@ async function remove() {
               placeholder="https://exemple.fr"
               maxlength="2048"
               autocomplete="url"
+              class="w-full"
+              :disabled="saving"
+            />
+          </UFormField>
+          <UFormField
+            label="Idée (facultatif)"
+            name="idea"
+            description="Ce que vous aimeriez proposer ou réaliser pour ce prospect."
+          >
+            <UTextarea
+              v-model="form.idea"
+              placeholder="Ex. : créer un site vitrine avec prise de rendez-vous."
+              maxlength="5000"
+              :rows="4"
               class="w-full"
               :disabled="saving"
             />

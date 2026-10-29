@@ -5,7 +5,7 @@ import { createTestDatabase } from '../helpers/database'
 
 const database = await createTestDatabase()
 afterAll(database.cleanup)
-const input = { name: 'Atelier Martin', domain: 'Artisanat', email: '', phone: '+33 6 12 34 56 78', websiteUrl: null }
+const input = { name: 'Atelier Martin', domain: 'Artisanat', email: '', phone: '+33 6 12 34 56 78', websiteUrl: null, idea: '' }
 
 beforeEach(async () => {
   await database.sql`TRUNCATE prospects`
@@ -26,6 +26,19 @@ describe('database-only prospects', () => {
     expect((await listProspects(database.sql)).total).toBe(0)
     await expect(updateProspect(database.sql, created.id, input)).rejects.toMatchObject({ statusCode: 404 })
     await expect(deleteProspect(database.sql, created.id)).rejects.toMatchObject({ statusCode: 404 })
+  })
+
+  it('persists, edits, searches, and clears a multiline idea', async () => {
+    const created = await createProspect(database.sql, { ...input, idea: 'Site vitrine\nRéservation en ligne' })
+    expect(created.idea).toBe('Site vitrine\nRéservation en ligne')
+    expect((await listProspects(database.sql, 1, 'réservation')).prospects).toEqual([created])
+    const updated = await updateProspect(database.sql, created.id, { ...input, idea: 'Automatiser les devis' })
+    expect(updated.idea).toBe('Automatiser les devis')
+    expect((await listProspects(database.sql, 1, 'réservation')).total).toBe(0)
+    expect((await listProspects(database.sql, 1, 'automatiser')).prospects).toEqual([updated])
+    const cleared = await updateProspect(database.sql, created.id, input)
+    expect(cleared.idea).toBe('')
+    expect((await listProspects(database.sql)).prospects).toEqual([cleared])
   })
 
   it('paginates and searches contact details and domain as literal text', async () => {
