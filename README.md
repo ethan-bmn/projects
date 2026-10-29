@@ -4,21 +4,7 @@ This project provides a private workspace with one secure account for its owner,
 
 See [the project design](docs/project-design.md) for the data model, access controls, and synchronization behavior. PostgreSQL runs locally through Docker Compose. Owner login uses a database account seeded from `.env`. Abby clients are synchronized daily; their projects and specifications remain local.
 
-Each project can store one contract. Apply migration `008_project_contract.sql` with `bun run db:migrate`, then open a project and choose **Créer le contrat**. The editor follows the Markdown templates in [`templates/`](templates/), prefills available client data, and shows the variables for the selected services alongside a clause preview. The main contract is [`templates/contract_template.md`](templates/contract_template.md); the GDPR agreement and hosting appendix are maintained there as [`templates/gdpr_subcontracting_agreement_template.md`](templates/gdpr_subcontracting_agreement_template.md) and [`templates/hosting_appendix_template.md`](templates/hosting_appendix_template.md). Drafts can be saved before all fields are complete. Upload the accepted quote as a PDF (maximum 5 MiB); the data-processing annex becomes mandatory when processing on the client's behalf is selected. Once the active variables, options, and checks are complete, export the contract: jsPDF renders it using the specification PDF's Public Sans fonts and purple page styling; pdf-lib appends every original quote page, preserving its dimensions. Password-protected or unreadable quote PDFs must be exported as readable PDFs before upload. Contracts and quote attachments are stored locally with the project and are preserved when specifications or Abby client details change.
-
-Contract creation and editing open a dedicated page at `/clients/:clientId/projects/:projectId/contract`. Saving or cancelling returns to the project, where the contract status and PDF export remain available. Leaving the editor with unsaved changes prompts for confirmation.
-
-The updated template's G0–G8 setup sheet drives the editor's service choices and conditional fields. Export includes only the retained clauses and annexes, with recalculated numbering, and requires the applicable checks. Older drafts preserve their values and quote but must be reviewed under the new choices before export. See [the contract generator](docs/contract-generator.md) for configuration and upgrade behavior.
-
-Migration `009_client_billing_address.sql` adds a structured `billing_address` column to `clients`. Synchronization imports Abby's billing address for both organizations and individual contacts, including the street, complement, postal code, city, state, and country. New contracts prefill the address from this local record; saved contracts keep their original values when a client moves. The migration makes the next automatic import due so existing clients receive their addresses.
-
-Uploading a quote also reads all its pages locally with PDF.js and prefills the detected quote reference and issue date in the identity section. Both remain editable. Dates are normalized to `DD/MM/YYYY`; validity and expiry dates are excluded. Use **Lire la référence et la date du PDF** to extract the values again from an already attached quote. Scanned PDFs without a text layer or unrecognized formats require manual entry; the attachment is still retained.
-
-Signature details are completed after export. The editor does not collect the signature city, date, signatory, or copy count, and these do not block export. The contract keeps blank city, date, and signature lines for signing later; the contract date remains separate.
-
-Annex references are generated from their type and the current contract reference: `ANN-HEB-{contract reference}` for the technical hosting annex and `ANN-RGPD-{contract reference}` for the data-processing annex. Both start at version `1`; saving or exporting does not increment the version. These values appear in the preview and exported documents rather than editable inputs.
-
-Every contract input, service choice, and verification checkbox has an information button with a French explanation and an example. Open it by click, touch, or keyboard; dismiss it with Escape or by clicking outside. Examples are guidance only and do not fill or modify the form.
+Apply pending migrations with `bun run db:migrate`. Migration `013_remove_contracts.sql` removes stored contract drafts, quote attachments, and the former provider profile. Historical migration files remain unchanged so existing installations can upgrade.
 
 ## Prospects
 
@@ -153,8 +139,7 @@ bun run dev
 Open **Paramètres** in the header (`/settings`). Each section saves independently:
 
 - **Connexion Abby** saves, replaces, or removes the API key. Stored keys are never returned to the browser.
-- **Coordonnées du prestataire** edits the shared name, SIREN, professional address, contact email, and optional phone in `provider_profile`. The contract editor reads this profile; new contracts also prefill GDPR subcontractor and complaints contact details from it. Saved contract records are not rewritten when the profile changes; reopening a contract uses the current shared provider identity, as before.
-- **Compte** edits the login email and optionally the password (12–1024 characters), after checking the current password. This email is separate from the contract contact email. Account update attempts are limited to five per minute per IP address.
+- **Compte** edits the login email and optionally the password (12–1024 characters), after checking the current password. Account update attempts are limited to five per minute per IP address.
 
 Deployment initialization preserves account changes. `bun run db:seed --update` is an explicit recovery action that reapplies credentials from the environment.
 
