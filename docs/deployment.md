@@ -1,15 +1,15 @@
 # Production deployment
 
-`docker-compose.production.yaml` runs the Nuxt app, PostgreSQL 18, a one-shot
-migration/owner seed job, ChartDB, and its SVG export worker. It is a
-standalone production stack with its own database volume. The local
-`docker-compose.yaml` remains available for development.
+The single `docker-compose.yaml` runs the Nuxt app, PostgreSQL 18,
+ChartDB, and its SVG export worker for both development
+and production. All services start without profiles. The default project name
+remains `abby-projects`, preserving the existing local database volume.
 
 The app image builds with Bun 1.3.14 and Node 24, then runs the compiled Nitro
 server as a non-root user. Database credentials are URL-encoded by the container
 entrypoint, so production does not need a manually constructed `DATABASE_URL`.
-Owner credentials are given only to the initialization job. The session secret
-is given only to the app. The Abby key is stored in PostgreSQL; these secrets
+Owner credentials and the session secret are given to the app. The Abby key is
+stored in PostgreSQL; these secrets
 are never Docker build arguments.
 
 ## First deployment
@@ -23,7 +23,7 @@ worker have no published host ports. App and ChartDB ports bind only to
 From the repository directory on the server:
 
 ```sh
-cp .env.production.example .env.production
+cp .env.example .env.production
 chmod 600 .env.production
 ```
 
@@ -46,15 +46,17 @@ docker build --target database -t abby-projects-database .
 docker run --rm -it --entrypoint node abby-projects-database scripts/hash-owner-password.mjs
 docker run --rm node:24-bookworm-slim node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 
-docker compose --env-file .env.production -f docker-compose.production.yaml config --quiet
-docker compose --env-file .env.production -f docker-compose.production.yaml up -d --build
-docker compose --env-file .env.production -f docker-compose.production.yaml ps --all
+docker compose --env-file .env.production config --quiet
+docker compose --env-file .env.production up -d --build --wait
+docker compose --env-file .env.production ps --all
 ```
 
-The database must become healthy before `db-init` applies all migrations and
-creates the owner if absent, preserving an existing account. The app starts only after that job exits
-successfully and the diagram worker is healthy. `db-init` remaining in the
-`Exited (0)` state is expected. `/health` checks the app's database connection.
+The database and diagram worker must become healthy before the app starts.
+On every app container start, `docker/entrypoint.sh` runs the seed command,
+which applies pending migrations and creates the owner if absent. Existing
+account settings are preserved. Initialization must succeed before the HTTP
+server starts; failures appear in the app logs. `/health` checks the app's
+database connection. No host database access or manual migration command is needed.
 
 For Abby synchronization, sign in and open **Paramètres → Connexion Abby** after
 initialization; see [the synchronization setup](../README.md#abby-client-synchronization). When
@@ -70,32 +72,38 @@ Import and save a ChartDB JSON file, then verify SVG and PDF exports.
 If startup fails, inspect the relevant logs:
 
 ```sh
-docker compose --env-file .env.production -f docker-compose.production.yaml logs --tail=100 db-init app chartdb-export
+docker compose --env-file .env.production logs --tail=100 app chartdb-export
 ```
 
 ## Updates and persistence
 
 Back up PostgreSQL before updating. Pull your code changes and rerun the same
-`up -d --build` command. The initialization job applies new migrations before
-the new app starts. Keep `NUXT_SESSION_PASSWORD` stable to preserve sessions;
+`up -d --build --wait --remove-orphans` command. Rebuilding includes new migrations
+and seeder code in the app image; its entrypoint runs them before serving requests.
+`--remove-orphans` removes the old `db-init` container when upgrading this setup.
+Add a new SQL file in `database/migrations/` for each schema change. Applied
+migrations are skipped and their checksums verified; editing an applied migration
+stops startup. The owner seeder runs each time and preserves an existing account.
+Keep `NUXT_SESSION_PASSWORD` stable to preserve sessions;
 changing it signs everyone out. Edit account credentials in **Paramètres → Compte**;
-the initialization job preserves them during updates. For account recovery, set
+the entrypoint preserves them during updates. For account recovery, set
 the owner credentials in `.env.production` and run
-`docker compose --env-file .env.production -f docker-compose.production.yaml run --rm db-init bun scripts/seed-owner.ts --update`.
+`docker compose --env-file .env.production run --rm --no-deps app bun scripts/seed-owner.ts --update`
+while PostgreSQL is running.
 Changing `POSTGRES_*` does
 not change users/passwords in an existing PostgreSQL volume.
 
-The production volume starts empty; it does not import your development data.
-If you need existing clients and projects, transfer a PostgreSQL backup before
-using the production app. Database data lives in a named volume and survives
-container replacements and ordinary `down`.
+With the default project name, database data stays in the existing
+`abby-projects_postgres_data` volume and survives container replacements and
+ordinary `down`. A new host or a different project name creates a separate,
+empty volume; restore a PostgreSQL backup there if you need existing data.
 Avoid `down --volumes` unless you intend to delete those volumes.
 
 For example, on a Linux server, create a database backup with the configured
 database user and name (the examples use the template defaults):
 
 ```sh
-docker compose --env-file .env.production -f docker-compose.production.yaml exec -T postgres pg_dump -U abby_projects -d abby_projects -Fc > abby-projects.dump
+docker compose --env-file .env.production exec -T postgres pg_dump -U abby_projects -d abby_projects -Fc > abby-projects.dump
 ```
 
 Store backups outside the server and verify that they can be restored. ChartDB's
@@ -107,15 +115,15 @@ PostgreSQL and is included in the database backup.
 For a proxy running on the server host, route the app domain to
 `http://127.0.0.1:3000` and the ChartDB domain to `http://127.0.0.1:8080` (or your
 configured host ports). For a proxy running in Docker, attach it to the
-`abby-projects-production_default` network and use `http://app:3000` and
+`abby-projects_default` network and use `http://app:3000` and
 `http://chartdb:80` as upstreams. Hosting platforms that attach services to their
 own proxy network can route directly to those same container ports.
 
-To attach the two browser-facing services to a pre-existing proxy network, use
-an additional Compose file, replacing `your-proxy-network` with its actual name:
+To attach the two browser-facing services to a pre-existing proxy network, add
+the following network configuration to `docker-compose.yaml`, replacing
+`your-proxy-network` with its actual name:
 
 ```yaml
-# docker-compose.proxy.yaml
 services:
   app:
     networks: [default, proxy]
@@ -128,10 +136,10 @@ networks:
     name: your-proxy-network
 ```
 
-Include it after the production file on deployment commands:
+Apply the network configuration with the same deployment command:
 
 ```sh
-docker compose --env-file .env.production -f docker-compose.production.yaml -f docker-compose.proxy.yaml up -d --build
+docker compose --env-file .env.production up -d --build --wait
 ```
 
 Pass the original `Host` and `X-Forwarded-Proto: https` headers to Nuxt. Configure

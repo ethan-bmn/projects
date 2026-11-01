@@ -13,6 +13,7 @@ ENV NITRO_PRESET=node-server
 RUN bun run build
 
 FROM dependencies AS database
+RUN bun install --frozen-lockfile --production --ignore-scripts
 COPY database ./database
 COPY scripts ./scripts
 COPY docker/entrypoint.mjs ./docker/entrypoint.mjs
@@ -21,12 +22,13 @@ USER node
 ENTRYPOINT ["node", "docker/entrypoint.mjs"]
 CMD ["bun", "run", "db:seed"]
 
-FROM node:24-bookworm-slim AS runtime
-WORKDIR /app
+FROM database AS runtime
 ENV NODE_ENV=production NITRO_HOST=0.0.0.0 NITRO_PORT=3000
 COPY --from=build --chown=node:node /app/.output ./.output
-COPY --chown=node:node docker/entrypoint.mjs ./docker/entrypoint.mjs
+COPY --chown=node:node docker/entrypoint.sh ./docker/entrypoint.sh
+USER root
+RUN sed -i 's/\r$//' docker/entrypoint.sh
 USER node
 EXPOSE 3000
-ENTRYPOINT ["node", "docker/entrypoint.mjs"]
+ENTRYPOINT ["node", "docker/entrypoint.mjs", "sh", "docker/entrypoint.sh"]
 CMD ["node", ".output/server/index.mjs"]

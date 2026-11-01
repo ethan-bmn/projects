@@ -70,7 +70,7 @@ Login reads the single owner account from PostgreSQL. Environment credentials ar
 
 The database enforces at most one owner account and there is no registration endpoint. All other pages use global authentication middleware, and application API routes require an owner session. The server checks the database password hash and stores the session in an encrypted, HttpOnly cookie with an eight-hour lifetime. Production requires HTTPS for secure cookies. Edit login credentials in **Paramètres → Compte**, confirming the current password. If you cannot sign in, set credentials in `.env` and run `bun run db:seed --update` to reset the account. Credential changes invalidate other sessions; the settings form renews the current session. Sign out clears the browser cookie; sealed sessions do not provide server-side revocation of copied cookies.
 
-To apply future schema migrations without changing credentials, run `bun run db:migrate`. Applied migrations are tracked with checksums; add a new SQL file rather than editing an applied migration. Reseeding does not delete clients or projects. Repeating the seed with unchanged credentials preserves the owner row and password hash. PostgreSQL database-user credentials (`POSTGRES_*`) remain separate from your application login.
+With Docker Compose, the app entrypoint applies pending migrations and runs the owner seeder before every server start. Deploy new migration or seeder code with `docker compose --env-file .env.production up -d --build --wait --remove-orphans`; no database access from the host is required. For a local Nuxt server, run `bun run db:migrate` to apply schema migrations. Applied migrations are tracked with checksums; add a new SQL file rather than editing an applied migration. Reseeding does not delete clients or projects and preserves existing account settings. PostgreSQL database-user credentials (`POSTGRES_*`) remain separate from your application login.
 
 ### Authentication Tests
 
@@ -84,54 +84,41 @@ Coverage includes guest redirects, signed-in navigation, expired sessions, rejec
 
 ## Development Server
 
-### Local PostgreSQL
+### Full stack
 
-Use Docker with a Compose version supporting `up --wait`, and start the Docker engine. Docker installed inside WSL also works. Copy the environment template once if `.env` does not already exist:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-On macOS/Linux, use `cp .env.example .env`. Set your own `POSTGRES_PASSWORD` in `.env` and update `DATABASE_URL` to match. URL-encode special characters in the URL's credentials. If port 5432 is occupied, change `POSTGRES_PORT` and the URL's port together.
-
-```bash
-docker compose config --quiet
-docker compose up -d --wait postgres
-docker compose ps
-```
-
-When using Docker inside WSL, run these commands from the repository directory in WSL:
-
-```bash
-cd /mnt/c/Users/Ethan/Desktop/Dev/projects
-docker compose up -d --wait postgres
-docker compose ps
-```
-
-Or invoke Docker from PowerShell through WSL:
+Use Docker with a Compose version supporting `up --wait`, and start the Docker engine. The single `docker-compose.yaml` runs Nuxt, PostgreSQL 18, automatic migrations and owner setup, ChartDB, and its SVG export worker. Copy the environment template once if `.env.production` does not already exist:
 
 ```powershell
-wsl --exec sh -lc 'cd /mnt/c/Users/Ethan/Desktop/Dev/projects && docker compose up -d --wait postgres'
+Copy-Item .env.example .env.production
 ```
 
-The service uses PostgreSQL 18, binds to `127.0.0.1`, and stores data in a named volume mounted at `/var/lib/postgresql`, following the [official image's PostgreSQL 18 layout](https://hub.docker.com/_/postgres). `DATABASE_URL` connects the Nuxt server and database commands to PostgreSQL. `NUXT_DATABASE_URL` may override it for a deployed Nuxt server. Starting the container alone does not create the owner account; run `bun run db:seed` once your owner credentials are set.
-
-Useful database commands:
+On macOS/Linux, use `cp .env.example .env.production`. Set the database password, owner credentials, session secret, and browser-facing ChartDB URL as described in [the deployment guide](docs/deployment.md). The containerized app uses production mode, including secure session cookies requiring HTTPS.
 
 ```bash
-docker compose logs -f postgres
-docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
-docker compose down
+docker compose --env-file .env.production config --quiet
+docker compose --env-file .env.production up -d --build --wait
+docker compose --env-file .env.production ps --all
 ```
 
-`docker compose down` preserves database data. `docker compose down --volumes` deletes the local database permanently. Initialization variables only apply to an empty volume; changing `.env` does not update existing database users or passwords. These credentials are for local development, not production.
+With Docker inside WSL, run the same commands from the repository directory in WSL, or invoke startup from PowerShell:
 
-### Nuxt
+```powershell
+wsl --exec sh -lc 'cd /mnt/c/Users/Ethan/Desktop/Dev/projects && docker compose --env-file .env.production up -d --build --wait'
+```
 
-Start the development server on `http://localhost:3000`:
+The default project name remains `abby-projects`, preserving the existing local `abby-projects_postgres_data` volume. Ordinary `docker compose --env-file .env.production down` preserves data; adding `--volumes` deletes it. Changing environment credentials does not update users/passwords in an existing PostgreSQL volume.
+
+### Optional Nuxt development server
+
+For hot reload, configure `.env` from `.env.example` with a database connection reachable from the host and the required authentication settings. The private Compose database and SVG worker are not exposed to host processes by default; provide reachable services or explicitly configure access before running Nuxt locally.
+
+Stop the containerized app before using its default port, or run the development server on an alternate port:
 
 ```bash
+docker compose --env-file .env.production stop app
 bun run dev
+# Alternatively, keep the app running and use another port:
+bun run dev -- --port 3001
 ```
 
 ## Global settings
@@ -238,14 +225,8 @@ an external service and exports the saved specification.
 
 ### Database diagrams and WBS planning
 
-Run `bun run db:migrate` to add diagram storage to existing projects. Start the
-local ChartDB editor and SVG renderer with
-`docker compose --profile diagrams up -d --build --wait chartdb chartdb-export`.
-With Docker in WSL, run:
-
-```powershell
-wsl --exec sh -lc 'cd /mnt/c/Users/Ethan/Desktop/Dev/projects && docker compose --profile diagrams up -d --build --wait chartdb chartdb-export'
-```
+The full Compose stack includes ChartDB and its SVG renderer, with migrations
+applied automatically during startup; no profile is required.
 
 ChartDB is available at `http://localhost:8080`, bound to the local machine with
 analytics disabled. Set `CHARTDB_PORT` and `NUXT_PUBLIC_CHARTDB_URL` together to
@@ -264,8 +245,8 @@ including its field and relationship styling. It closes the browser workspace
 after each export and only permits requests to the local ChartDB instance. The
 app endpoint requires the owner's session and checks that the project belongs
 to the customer. Empty architectures cannot be exported. Concurrent exports
-return a retry message. Set `CHARTDB_EXPORT_PORT` and `NUXT_CHARTDB_EXPORT_URL`
-together if port 8081 is unavailable. The worker's dependency and lockfile live
+return a retry message. The app reaches the worker privately at
+`http://chartdb-export:8081`. The worker's dependency and lockfile live
 in `tools/chartdb-export/`; its Playwright version must match its Docker image.
 
 In **Planning**, select **Ajouter une phase**, then add named tasks and subtasks.
@@ -283,20 +264,19 @@ subtasks remain connected.
 ## Production
 
 The complete production stack is defined in
-[`docker-compose.production.yaml`](docker-compose.production.yaml): Nuxt,
+[`docker-compose.yaml`](docker-compose.yaml), also used for development: Nuxt,
 PostgreSQL, automatic migrations and owner setup, ChartDB, and its SVG export
 worker. Your existing proxy or hosting platform handles HTTPS. Copy
-`.env.production.example` to `.env.production`, set the public ChartDB URL and
+`.env.example` to `.env.production`, set the public ChartDB URL and
 credentials, then run:
 
 ```bash
-docker compose --env-file .env.production -f docker-compose.production.yaml config --quiet
-docker compose --env-file .env.production -f docker-compose.production.yaml up -d --build
+docker compose --env-file .env.production config --quiet
+docker compose --env-file .env.production up -d --build --wait
 ```
 
 See [the deployment guide](docs/deployment.md) for proxy routing, password
 generation, first startup, backups, and updates.
-The local development stack uses `docker-compose.yaml`.
 
 To build and preview without Docker:
 
