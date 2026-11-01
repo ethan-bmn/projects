@@ -161,6 +161,9 @@ function saveAccount() {
           </form>
         </section>
 
+        <MailSettingsForm />
+        <DocusignSettingsForm />
+
         <section
           id="account"
           aria-labelledby="account-title"

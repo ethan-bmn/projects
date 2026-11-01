@@ -153,6 +153,12 @@ async function save(input: ProjectInput) {
           />
         </dl>
       </section>
+      <QuoteEmailForm
+        v-if="data.project.quoteId"
+        :client="data.client"
+        :project-id="projectId"
+        :quote-id="data.project.quoteId"
+      />
       <section class="space-y-3 border-t border-default pt-5">
         <h2 class="text-lg font-semibold text-highlighted">
           Cahier des charges
