@@ -261,6 +261,20 @@ tasks as vectors, keeps task groups together when they fit on a page, and repeat
 parent tasks with a “suite” label when a group continues on the next page so
 subtasks remain connected.
 
+## Sending devis by email
+
+Configure SMTP, the sender, and reusable subject/message templates in
+**Paramètres → Envoi des devis**. Templates support variables such as
+`${PROJECT_NAME}`, `${CLIENT_NAME}`, and `${QUOTE_NUMBER}`. A project's associated
+Abby devis can be previewed and emailed as its official PDF attachment to one of
+the customer's email addresses. Add an existing signature link or connect DocuSign
+to create and send a separate signature invitation. Delivery history records SMTP
+acceptance and DocuSign outcomes independently.
+
+See [the devis email guide](docs/quote-email.md) for setup, template variables,
+DocuSign authorization, and retry behavior. Database migrations run automatically
+on container startup.
+
 ## Production
 
 The complete production stack is defined in

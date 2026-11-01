@@ -84,6 +84,11 @@ docker compose --env-file .env.production logs --tail=100 app chartdb-export
 
 ## Updates and persistence
 
+SMTP delivery and DocuSign are configured from the app's settings; see
+[sending devis](quote-email.md). Their saved credentials are encrypted using
+`NUXT_SESSION_PASSWORD`. Rotating that secret requires re-entering SMTP/DocuSign
+credentials and reconnecting DocuSign, in addition to signing everyone out.
+
 Back up PostgreSQL before updating. Pull your code changes and rerun the same
 `up -d --build --wait --remove-orphans` command. Rebuilding includes new migrations
 and seeder code in the app image; its entrypoint runs them before serving requests.
