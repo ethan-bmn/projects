@@ -133,6 +133,14 @@ port 3000 and the ChartDB domain to container port 80, and set
 host port mappings for these services before redeploying. Fixed host ports can
 conflict with other services or an earlier deployment still running.
 
+The default network declares explicit aliases for `postgres`, `chartdb`, and
+`chartdb-export` so internal URLs keep working when the platform renames services.
+If the owner seed reports `ENOTFOUND`, check the database hostname in the logs
+and verify that the app and PostgreSQL share this network in Coolify's generated
+Compose configuration. Explicit `NUXT_DATABASE_URL` or `DATABASE_URL` values take
+precedence over the container-generated URL; remove stale overrides to use
+`postgres:5432`. Redeploy the whole stack after changing network aliases.
+
 For a proxy running on the server host, enable loopback host ports with:
 
 ```sh

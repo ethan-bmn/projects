@@ -23,6 +23,17 @@ export function formatDatabaseError(error: unknown, env: Record<string, string |
     })) {
       if (details[field] !== undefined) lines.push(`  ${label}: ${details[field]}`)
     }
+    if (details.code === 'ENOTFOUND' || details.code === 'EAI_AGAIN') {
+      const url = env.NUXT_DATABASE_URL || env.DATABASE_URL
+      if (url) {
+        try {
+          lines.push(`  Database hostname: ${new URL(url).hostname}`)
+        } catch {
+          // Keep the original error; malformed URLs may contain credentials.
+        }
+      }
+      lines.push('  Check the database hostname and shared Docker network; the Compose database alias is postgres.')
+    }
     current = details.cause
   }
 

@@ -40,4 +40,24 @@ describe('database error diagnostics', () => {
     error.cause = error
     expect(formatDatabaseError(error, {})).toBe('Connection refused')
   })
+
+  it.each(['ENOTFOUND', 'EAI_AGAIN'])('identifies the effective database hostname for %s without credentials', (code) => {
+    const error = Object.assign(new Error('getaddrinfo failed'), { code })
+    const output = formatDatabaseError(error, {
+      DATABASE_URL: 'postgresql://user:password@ignored-host/db',
+      NUXT_DATABASE_URL: 'postgresql://owner:private-password@missing-postgres:5432/private-db'
+    })
+    expect(output).toContain('Database hostname: missing-postgres')
+    expect(output).toContain('shared Docker network')
+    expect(output).not.toContain('ignored-host')
+    expect(output).not.toContain('private-password')
+    expect(output).not.toContain('private-db')
+  })
+
+  it('does not expose malformed connection URLs in DNS diagnostics', () => {
+    const error = Object.assign(new Error('getaddrinfo failed'), { code: 'ENOTFOUND' })
+    const output = formatDatabaseError(error, { DATABASE_URL: 'invalid-private-credentials' })
+    expect(output).not.toContain('invalid-private-credentials')
+    expect(output).not.toContain('Database hostname:')
+  })
 })

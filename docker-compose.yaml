@@ -37,7 +37,10 @@ services:
       start_period: 30s
 
   postgres:
-    networks: [default]
+    networks:
+      default:
+        aliases:
+          - postgres
     image: postgres:18-alpine
     restart: unless-stopped
     environment: *database-environment
@@ -51,7 +54,10 @@ services:
       start_period: 10s
 
   chartdb:
-    networks: [default]
+    networks:
+      default:
+        aliases:
+          - chartdb
     image: ghcr.io/chartdb/chartdb:1.20.1
     restart: unless-stopped
     environment:
@@ -67,7 +73,10 @@ services:
       start_period: 10s
 
   chartdb-export:
-    networks: [default]
+    networks:
+      default:
+        aliases:
+          - chartdb-export
     build:
       context: .
       dockerfile: tools/chartdb-export/Dockerfile
