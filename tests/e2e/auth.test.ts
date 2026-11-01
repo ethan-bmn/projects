@@ -74,6 +74,25 @@ function sessionCookie(response: Response) {
 }
 
 describe('owner authentication', () => {
+  it('protects email and DocuSign settings and rejects callbacks without OAuth state', async () => {
+    for (const path of ['/api/settings/email', '/api/settings/docusign']) {
+      expect((await fetch(path)).status).toBe(401)
+    }
+    expect((await fetch('/api/settings/docusign/connect', { method: 'POST' })).status).toBe(401)
+    const callback = await fetch('/api/docusign/callback?code=untrusted', { redirect: 'manual' })
+    expect(callback.status).toBe(302)
+    expect(callback.headers.get('location')).toBe('/settings?docusign=error#docusign')
+    const cookie = sessionCookie(await login())
+    const response = await fetch('/api/settings/email', { headers: { cookie } })
+    expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(await response.json()).toMatchObject({ configured: false, smtpPasswordConfigured: false })
+    expect((await fetch('/api/settings/docusign', { headers: { cookie } })).status).toBe(200)
+    expect((await fetch('/api/settings/email', {
+      method: 'PUT', headers: { cookie, 'Origin': 'https://other.example.test', 'Content-Type': 'application/json' }, body: '{}'
+    })).status).toBe(403)
+  })
+
   it('exports saved ChartDB schemas as SVG through protected customer-scoped routes', async () => {
     const cookie = sessionCookie(await login())
     const [customer] = await database.sql`INSERT INTO clients (kind, abby_id, name) VALUES ('individual', 'svg-export-person', 'SVG person') RETURNING id`
