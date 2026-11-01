@@ -14,18 +14,21 @@ export class ProjectError extends Error {
 export function validateProjectInput(value: unknown): ProjectInput {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new ProjectError('Le projet est invalide.')
   const input = value as Record<string, unknown>
-  if (Object.keys(input).some(key => !['name', 'specification', 'diagrams'].includes(key))) {
+  if (Object.keys(input).some(key => !['name', 'specification', 'diagrams', 'quoteId'].includes(key))) {
     throw new ProjectError('Le projet contient des champs non pris en charge.')
   }
   if (typeof input.name !== 'string' || !input.name.trim() || input.name.trim().length > 200) {
     throw new ProjectError('Le nom du projet doit contenir entre 1 et 200 caractères.')
   }
-  if (!input.specification || typeof input.specification !== 'object' || Array.isArray(input.specification)) {
+  if (input.quoteId != null && (typeof input.quoteId !== 'string' || !input.quoteId.trim() || input.quoteId.length > 200)) {
+    throw new ProjectError('Le devis Abby est invalide.')
+  }
+  if (input.specification != null && (typeof input.specification !== 'object' || Array.isArray(input.specification))) {
     throw new ProjectError('Le cahier des charges est invalide.')
   }
   const source = input.specification as Record<string, unknown>
   const specification = {} as ProjectSpecification
-  for (const section of projectSections) {
+  for (const section of input.specification == null ? [] : projectSections) {
     const content = source[section.key]
     if (section.optional && (content == null || content === '')) {
       specification[section.key] = null
@@ -39,7 +42,9 @@ export function validateProjectInput(value: unknown): ProjectInput {
   }
   try {
     return {
-      name: input.name.trim(), specification,
+      name: input.name.trim(),
+      ...(input.specification !== undefined ? { specification: input.specification === null ? null : specification } : {}),
+      ...(input.quoteId !== undefined ? { quoteId: input.quoteId as string | null } : {}),
       ...(input.diagrams !== undefined ? { diagrams: validateDiagrams(input.diagrams) } : {})
     }
   } catch (error) {
@@ -51,7 +56,8 @@ interface ProjectRow {
   id: string
   client_id: string
   name: string
-  specification: ProjectSpecification
+  specification: ProjectSpecification | null
+  quote_id: string | null
   diagrams: ProjectDiagrams
   created_at: Date
   updated_at: Date
@@ -60,7 +66,8 @@ interface ProjectRow {
 function project(row: ProjectRow): Project {
   return {
     id: row.id, clientId: row.client_id, name: row.name,
-    specification: Object.fromEntries(projectSections.map(section => [section.key, row.specification[section.key] ?? null])) as ProjectSpecification,
+    specification: row.specification === null ? null : Object.fromEntries(projectSections.map(section => [section.key, row.specification?.[section.key] ?? null])) as ProjectSpecification,
+    quoteId: row.quote_id,
     diagrams: row.diagrams,
     createdAt: row.created_at.toISOString(), updatedAt: row.updated_at.toISOString()
   }
@@ -92,8 +99,8 @@ export async function getClientProjects(sql: postgres.Sql, clientId: string): Pr
 
 export async function createProject(sql: postgres.Sql, clientId: string, input: ProjectInput): Promise<Project> {
   const [row] = await sql<ProjectRow[]>`
-    INSERT INTO projects (client_id, name, specification, diagrams)
-    SELECT id, ${input.name}, ${sql.json(input.specification)}, ${sql.json(input.diagrams ?? { database: null, wbs: [] })} FROM clients WHERE id = ${clientId}
+    INSERT INTO projects (client_id, name, specification, diagrams, quote_id)
+    SELECT id, ${input.name}, ${input.specification ? sql.json(input.specification) : null}, ${sql.json(input.diagrams ?? { database: null, wbs: [] })}, ${input.quoteId ?? null} FROM clients WHERE id = ${clientId}
     RETURNING *
   `
   if (!row) throw new ProjectError('Client introuvable.', 404)
@@ -109,7 +116,9 @@ export async function getProject(sql: postgres.Sql, clientId: string, projectId:
 
 export async function updateProject(sql: postgres.Sql, clientId: string, projectId: string, input: ProjectInput): Promise<Project> {
   const [row] = await sql<ProjectRow[]>`
-    UPDATE projects SET name = ${input.name}, specification = ${sql.json(input.specification)},
+    UPDATE projects SET name = ${input.name},
+      specification = CASE WHEN ${input.specification !== undefined} THEN ${input.specification ? sql.json(input.specification) : null} ELSE specification END,
+      quote_id = CASE WHEN ${input.quoteId !== undefined} THEN ${input.quoteId ?? null} ELSE quote_id END,
       diagrams = CASE WHEN ${input.diagrams !== undefined} THEN ${sql.json(input.diagrams ?? { database: null, wbs: [] })} ELSE diagrams END,
       updated_at = clock_timestamp()
     WHERE id = ${projectId} AND client_id = ${clientId} RETURNING *

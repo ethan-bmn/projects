@@ -1,69 +1,30 @@
 <script setup lang="ts">
-import { projectSections } from '#shared/types/projects'
 import type { Project, ProjectDetail, ProjectInput } from '#shared/types/projects'
-import { databaseDrawing, wbsDrawing } from '#shared/utils/diagrams'
-import { projectSvgFilename } from '#shared/utils/project-filenames'
+import type { AbbyQuote } from '#shared/types/quotes'
 
 const route = useRoute()
 const clientId = String(route.params.clientId)
 const projectId = String(route.params.projectId)
-const { data, error } = await useFetch<ProjectDetail>(`/api/clients/${clientId}/projects/${projectId}`)
+const endpoint = `/api/clients/${clientId}/projects/${projectId}`
+const { data, error } = await useFetch<ProjectDetail>(endpoint)
 if (error.value || !data.value) throw createError({ statusCode: error.value?.statusCode ?? 404, message: 'Projet introuvable.' })
 useSeoMeta({ title: () => `${data.value?.project.name} | Abby Projects` })
-
 const editing = ref(false)
 const pending = ref(false)
 const saveError = ref('')
-const exporting = ref(false)
-const exportingSvg = ref(false)
-const exportError = ref('')
-const config = useRuntimeConfig()
-const editor = useTemplateRef<{ markSaved: () => void }>('editor')
-const dbDrawing = computed(() => data.value?.project.diagrams?.database ? databaseDrawing(data.value.project.diagrams.database) : null)
-const planningDrawing = computed(() => data.value?.project.diagrams?.wbs.length ? wbsDrawing(data.value.project.diagrams.wbs) : null)
-
-async function exportDatabaseSvg() {
-  if (exportingSvg.value || !data.value) return
-  exportingSvg.value = true
-  exportError.value = ''
-  try {
-    const svg = await $fetch<Blob>(`/api/clients/${clientId}/projects/${projectId}/database.svg`, { method: 'POST', responseType: 'blob' })
-    const url = URL.createObjectURL(svg)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = projectSvgFilename(data.value.project.name)
-    anchor.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
-  } catch {
-    exportError.value = 'Impossible de générer le SVG. Vérifiez que les services Docker ChartDB sont démarrés, puis réessayez.'
-  } finally {
-    exportingSvg.value = false
-  }
-}
-
-async function exportPdf() {
-  if (exporting.value || !data.value) return
-  exporting.value = true
-  exportError.value = ''
-  try {
-    const { downloadProjectPdf } = await import('~/lib/project-pdf')
-    await downloadProjectPdf(data.value, config.app.baseURL)
-  } catch {
-    exportError.value = 'Impossible de générer le PDF. Réessayez.'
-  } finally {
-    exporting.value = false
-  }
-}
+const { data: quote, error: quoteError, status: quoteStatus, refresh: refreshQuote } = await useFetch<AbbyQuote | null>(`${endpoint}/quote`, { server: false, lazy: true })
+const quoteErrorMessage = computed(() => (quoteError.value?.data as { message?: string } | undefined)?.message || 'Impossible de récupérer le devis Abby.')
+const states: Record<string, string> = { draft: 'Brouillon', finalized: 'Finalisé', signed: 'Signé', refused: 'Refusé', paid: 'Payé' }
+const amount = computed(() => quote.value ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: quote.value.currencyCode }).format(quote.value.amountWithTax / 100) : '')
 
 async function save(input: ProjectInput) {
   if (pending.value) return
   pending.value = true
   saveError.value = ''
   try {
-    const project = await $fetch<Project>(`/api/clients/${clientId}/projects/${projectId}`, { method: 'PUT', body: input })
-    editor.value?.markSaved()
-    data.value!.project = project
+    data.value!.project = await $fetch<Project>(endpoint, { method: 'PUT', body: input })
     editing.value = false
+    await refreshQuote()
   } catch (cause) {
     saveError.value = (cause as { data?: { message?: string } }).data?.message || 'Impossible d’enregistrer le projet. Réessayez.'
   } finally {
@@ -80,48 +41,32 @@ async function save(input: ProjectInput) {
     <NuxtLink
       :to="`/clients/${clientId}`"
       class="text-sm text-muted underline-offset-4 hover:underline"
-    >{{ data.client.name }} · Retour aux projets</NuxtLink>
+    >
+      {{ data.client.name }} · Retour aux projets
+    </NuxtLink>
     <div class="mt-5 flex flex-wrap items-start justify-between gap-4">
       <h1 class="text-2xl font-semibold tracking-tight text-highlighted">
-        {{ editing ? 'Modifier le projet' : data.project.name }}
+        {{ data.project.name }}
       </h1>
-      <div
+      <UButton
         v-if="!editing"
-        class="flex flex-wrap gap-2"
-      >
-        <UButton
-          label="Exporter en PDF"
-          icon="i-lucide-download"
-          :loading="exporting"
-          @click="exportPdf"
-        />
-        <UButton
-          label="Modifier"
-          icon="i-lucide-pencil"
-          color="neutral"
-          variant="outline"
-          @click="editing = true; saveError = ''"
-        />
-      </div>
+        label="Modifier le projet"
+        icon="i-lucide-pencil"
+        color="neutral"
+        variant="outline"
+        @click="editing = true; saveError = ''"
+      />
     </div>
-    <p
-      v-if="exportError"
-      role="alert"
-      class="mt-4 text-sm text-error"
-    >
-      {{ exportError }}
-    </p>
     <p
       v-if="!data.client.active"
       class="mt-4 text-sm text-muted"
     >
       Ce client est inactif dans Abby. Le projet est conservé.
     </p>
-
-    <ProjectEditor
+    <ProjectDetailsEditor
       v-if="editing"
-      ref="editor"
       class="mt-6"
+      :client-id="clientId"
       :initial="data.project"
       :pending="pending"
       :error="saveError"
@@ -130,44 +75,85 @@ async function save(input: ProjectInput) {
     />
     <div
       v-else
-      class="mt-8 space-y-6"
+      class="mt-8 space-y-8"
     >
-      <h2 class="text-lg font-semibold text-highlighted">
-        Cahier des charges
-      </h2>
-      <section
-        v-for="section in projectSections"
-        :key="section.key"
-        class="border-t border-default pt-5"
-      >
-        <h3 class="font-medium text-highlighted">
-          {{ section.label }}{{ section.optional ? ' (optionnel)' : '' }}
-        </h3>
-        <p class="mt-2 whitespace-pre-wrap wrap-break-word text-sm leading-6 text-muted">
-          {{ data.project.specification[section.key] || 'Non renseignée' }}
+      <section class="space-y-3 border-t border-default pt-5">
+        <h2 class="text-lg font-semibold text-highlighted">
+          Devis Abby
+        </h2>
+        <p
+          v-if="!data.project.quoteId"
+          class="text-sm text-muted"
+        >
+          Aucun devis associé.
         </p>
-        <DiagramPreview
-          v-if="section.key === 'databaseArchitecture' && dbDrawing"
-          :drawing="dbDrawing"
-          label="Architecture de la base de données"
-          class="mt-3"
-        />
+        <p
+          v-else-if="quoteStatus === 'pending'"
+          role="status"
+          class="text-sm text-muted"
+        >
+          Chargement du devis depuis Abby…
+        </p>
+        <div
+          v-else-if="quoteError"
+          role="alert"
+          class="space-y-3"
+        >
+          <p class="text-sm text-error">
+            {{ quoteErrorMessage }}
+          </p>
+          <UButton
+            label="Réessayer"
+            color="neutral"
+            variant="outline"
+            @click="refreshQuote()"
+          />
+        </div>
+        <dl
+          v-else-if="quote"
+          class="space-y-2 text-sm"
+        >
+          <div class="flex flex-wrap gap-2">
+            <dt class="text-muted">
+              Numéro :
+            </dt><dd>{{ quote.number || 'Brouillon' }}</dd>
+          </div>
+          <div
+            v-if="quote.title"
+            class="flex flex-wrap gap-2"
+          >
+            <dt class="text-muted">
+              Objet :
+            </dt><dd>{{ quote.title }}</dd>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <dt class="text-muted">
+              État :
+            </dt><dd>{{ states[quote.state] || quote.state }}</dd>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <dt class="text-muted">
+              Montant TTC :
+            </dt><dd>{{ amount }}</dd>
+          </div>
+          <UButton
+            label="Actualiser depuis Abby"
+            color="neutral"
+            variant="outline"
+            @click="refreshQuote()"
+          />
+        </dl>
+      </section>
+      <section class="space-y-3 border-t border-default pt-5">
+        <h2 class="text-lg font-semibold text-highlighted">
+          Cahier des charges
+        </h2>
+        <p class="text-sm text-muted">
+          {{ data.project.specification ? 'Un cahier des charges est associé à ce projet.' : 'Aucun cahier des charges. Vous pouvez en ajouter un quand vous en avez besoin.' }}
+        </p>
         <UButton
-          v-if="section.key === 'databaseArchitecture' && dbDrawing"
-          label="Exporter le SVG avec ChartDB"
-          icon="i-lucide-download"
-          color="neutral"
-          variant="outline"
-          class="mt-3"
-          :loading="exportingSvg"
-          @click="exportDatabaseSvg"
-        />
-        <DiagramPreview
-          v-if="section.key === 'schedule' && planningDrawing"
-          :drawing="planningDrawing"
-          label="Décomposition du projet en tâches (WBS)"
-          class="mt-3"
-          tree
+          :label="data.project.specification ? 'Ouvrir le cahier des charges' : 'Configurer le cahier des charges'"
+          :to="`/clients/${clientId}/projects/${projectId}/specification`"
         />
       </section>
     </div>

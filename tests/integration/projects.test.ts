@@ -22,6 +22,22 @@ beforeEach(async () => {
 })
 
 describe('customer projects', () => {
+  it('creates projects without specs, attaches specs later and preserves them when changing the devis', async () => {
+    const created = await createProject(database.sql, businessId, { name: 'Sans cahier des charges' })
+    expect(created.specification).toBeNull()
+    expect(created.quoteId).toBeNull()
+    const attached = await updateProject(database.sql, businessId, created.id, { name: created.name, quoteId: 'estimate-1' })
+    expect(attached.specification).toBeNull()
+    const specified = await updateProject(database.sql, businessId, created.id, projectInput(created.name))
+    expect(specified.quoteId).toBe('estimate-1')
+    expect(specified.specification).toEqual(projectInput().specification)
+    const renamed = await updateProject(database.sql, businessId, created.id, { name: 'Renommé', quoteId: null })
+    expect(renamed.specification).toEqual(specified.specification)
+    expect(renamed.quoteId).toBeNull()
+    const removed = await updateProject(database.sql, businessId, created.id, { name: renamed.name, specification: null })
+    expect(removed.specification).toBeNull()
+    expect((await getProject(database.sql, businessId, created.id)).project.specification).toBeNull()
+  })
   it('removes retired storage while preserving project specifications and diagrams', async () => {
     const migration = await readFile(new URL('../../database/migrations/013_remove_contracts.sql', import.meta.url), 'utf8')
     const input = projectInput()

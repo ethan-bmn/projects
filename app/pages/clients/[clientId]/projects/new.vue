@@ -9,7 +9,6 @@ useSeoMeta({ title: 'Nouveau projet | Abby Projects' })
 
 const pending = ref(false)
 const saveError = ref('')
-const editor = useTemplateRef<{ markSaved: () => void }>('editor')
 
 async function save(input: ProjectInput) {
   if (pending.value) return
@@ -17,7 +16,6 @@ async function save(input: ProjectInput) {
   saveError.value = ''
   try {
     const project = await $fetch<Project>(`/api/clients/${clientId}/projects`, { method: 'POST', body: input })
-    editor.value?.markSaved()
     await navigateTo(`/clients/${clientId}/projects/${project.id}`)
   } catch (cause) {
     saveError.value = (cause as { data?: { message?: string } }).data?.message || 'Impossible d’enregistrer le projet. Réessayez.'
@@ -39,8 +37,11 @@ async function save(input: ProjectInput) {
     <h1 class="mt-5 text-2xl font-semibold tracking-tight text-highlighted">
       Nouveau projet
     </h1>
-    <ProjectEditor
-      ref="editor"
+    <p class="mt-3 text-sm text-muted">
+      Le cahier des charges pourra être ajouté après la création du projet.
+    </p>
+    <ProjectDetailsEditor
+      :client-id="clientId"
       class="mt-6"
       :pending="pending"
       :error="saveError"

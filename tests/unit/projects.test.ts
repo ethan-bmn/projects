@@ -4,6 +4,15 @@ import { projectInput } from '../helpers/projects'
 import { projectSections } from '../../shared/types/projects'
 
 describe('project input validation', () => {
+  it('accepts projects without specifications and explicit removal', () => {
+    expect(validateProjectInput({ name: 'Projet simple' })).toEqual({ name: 'Projet simple' })
+    expect(validateProjectInput({ name: 'Projet simple', specification: null, quoteId: null })).toEqual({ name: 'Projet simple', specification: null, quoteId: null })
+    expect(() => validateProjectInput({ name: 'Projet simple', specification: {} })).toThrow('champ')
+  })
+
+  it.each(['', ' ', 123, {}, 'x'.repeat(201)])('rejects an invalid Abby quote reference: %j', (quoteId) => {
+    expect(() => validateProjectInput({ name: 'Projet', quoteId })).toThrow('devis')
+  })
   it.each([null, {}, { version: 2 }])('rejects retired contract input: %j', (contract) => {
     expect(() => validateProjectInput({ ...projectInput(), contract })).toThrow('champs non pris en charge')
   })

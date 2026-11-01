@@ -102,7 +102,7 @@ function contact(value: unknown): AbbyContact {
   }
 }
 
-async function fetchAbbyJson(url: URL, config: AbbyConfig, request: typeof fetch, deadline: number): Promise<Record<string, unknown>> {
+export async function fetchAbbyJson(url: URL, config: AbbyConfig, request: typeof fetch, deadline: number): Promise<Record<string, unknown>> {
   if (Date.now() >= deadline) throw new AbbySyncError('La synchronisation Abby a dépassé le délai autorisé.')
   let response: Response
   try {

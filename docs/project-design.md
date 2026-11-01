@@ -13,19 +13,20 @@ Build a private workspace for one owner with exactly one login account. Import c
 1. Sign in securely.
 2. Import or refresh clients from Abby.
 3. Select a client and view their projects.
-4. Create a project and edit its specifications independently of other projects.
-5. Refresh client information without overwriting project data.
+4. Create a project with a name and an optional devis selected from Abby.
+5. Open the project overview, then configure specifications if needed. Projects can remain without specifications.
+6. Refresh client information without overwriting project data.
 
 ## Data Model
 
-The owner, client, synchronization, and project tables are implemented. A project's specification is stored as structured JSONB on its project row.
+The owner, client, synchronization, and project tables are implemented. A project's specification is nullable structured JSONB on its project row. Migration `015_project_quotes.sql` makes specifications optional and adds a nullable `quote_id` reference to an Abby estimate. Existing specifications are preserved.
 
 | Entity | Main fields | Relationships |
 | --- | --- | --- |
 | Owner account | Singleton `id = 1`, email, password hash, timestamps | The sole owner login |
 | Abby sync state | Singleton `id`, last successful sync | Tracks the owner's Abby import |
 | Client | UUID `id`, unique `(kind, abby_id)`, business/individual type, name, commercial name, emails, active flag and sync timestamps | Future projects reference the stable local ID |
-| Project | UUID `id`, `client_id`, name, JSONB specification, timestamps | Belongs to exactly one client |
+| Project | UUID `id`, `client_id`, name, nullable JSONB specification, nullable Abby `quote_id`, timestamps | Belongs to exactly one client |
 
 The specification contains multiline text for contexte métier, contexte technique, objectifs, enjeux, contraintes métiers, contraintes techniques, architecture logicielle, architecture DB, outils et frameworks, and planning. Contexte métier, contexte technique, contraintes techniques, architecture DB, and planning are optional (`null` when empty); the other sections are required. Names allow 200 characters and each section allows 20,000 characters. The API validates the shape and text values before writing.
 
@@ -55,7 +56,9 @@ The server checks at startup and hourly, importing when the last success is at l
 
 ## Implementation and Verification
 
-Customer pages at `/clients/:clientId` list projects and link to the creation form. `/clients/:clientId/projects/:projectId` displays the specification and supports editing. The editor warns before discarding unsaved changes. Protected APIs provide customer/project reads, project creation (`POST`), and full specification updates (`PUT`). Every project lookup/update is scoped by both local project and customer IDs; inactive customers retain project access.
+Customer pages at `/clients/:clientId` list projects and link to the creation form. `/clients/:clientId/projects/:projectId` displays the project overview and its devis, with a separate `/specification` screen to create, view, edit, and export specifications. The specification editor warns before discarding unsaved changes. Protected APIs provide customer/project reads, project creation (`POST`), and updates (`PUT`). Omitting `specification`, `diagrams`, or `quoteId` during an update preserves that field; explicit `null` clears specifications or the devis link. Required specification sections are validated only when a specification is supplied. Every project lookup/update is scoped by both local project and customer IDs; inactive customers retain project access.
+
+The devis selector calls `GET /api/clients/:clientId/quotes`, backed by Abby's paginated `GET /v2/billings` endpoint with estimate, production, and non-archived filters. Results are matched against the synchronized organization/contact ID, including organization contacts. Individual clients are matched locally because billing-customer IDs differ from synchronized contact IDs. Saving a devis link verifies its identity, type, and client through `GET /v2/billing/:documentId`. The overview fetches its current number, title, state, currency, and total via the protected project `/quote` endpoint; only the Abby ID is stored locally. Abby amounts are cents. Credentials remain on the server, with the existing host allowlist, redirect protection, request deadlines, and safe error messages. Projects can still be created without a devis when Abby is unavailable.
 
 The project page lazy-loads jsPDF for a browser-side **Exporter en PDF** action.
 The export uses saved data, embeds locally bundled Public Sans regular/bold TTF
@@ -65,3 +68,5 @@ served from the app; no project data is uploaded to a PDF service. Font licensin
 and the pinned source revision are recorded in `public/fonts/pdf/`.
 
 `bun run test` runs Vitest unit, PostgreSQL integration, and authenticated HTTP tests using temporary databases and an isolated Nuxt server. Tests cover authentication, synchronization, segmentation, multiple projects per customer, optional DB architecture, required sections, foreign keys, scoped updates, and preservation through Abby refreshes. No tests call the real Abby API. Continue running `bun run lint`, `bun run typecheck`, and `bun run build`.
+
+The optional-specifications and Abby-devis workflow was verified in headless Chrome with an isolated database: create without specs, configure and save specs later, return to the overview, select a devis, and display its current details. Desktop (1280px) and mobile (390px), light and dark appearance were checked for horizontal overflow and browser errors. Browser devis responses were mocked; API unit tests separately cover pagination, customer/type matching, invalid responses, authorization errors, rate limits, and host restrictions. The full suite passes 246 tests.

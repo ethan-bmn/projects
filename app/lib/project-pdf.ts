@@ -217,7 +217,7 @@ export function renderProjectPdf(doc: jsPDF, detail: ProjectDetail, fonts: PdfFo
   y += 4
 
   const filledSections = projectSections.flatMap((section) => {
-    const content = cleanText(detail.project.specification[section.key] ?? '')
+    const content = cleanText(detail.project.specification?.[section.key] ?? '')
     const hasDiagram = section.key === 'databaseArchitecture'
       ? !!detail.project.diagrams?.database
       : section.key === 'schedule' && !!detail.project.diagrams?.wbs.length

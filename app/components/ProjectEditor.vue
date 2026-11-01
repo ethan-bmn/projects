@@ -11,7 +11,7 @@ const form = reactive({
     database: props.initial?.diagrams?.database ?? null,
     wbs: props.initial?.diagrams?.wbs.map(item => ({ ...item })) ?? []
   },
-  specification: Object.fromEntries(projectSections.map(section => [section.key, props.initial?.specification[section.key] ?? ''])) as Record<ProjectSection, string>
+  specification: Object.fromEntries(projectSections.map(section => [section.key, props.initial?.specification?.[section.key] ?? ''])) as Record<ProjectSection, string>
 })
 const saved = ref(JSON.stringify(form))
 const importingDiagram = ref(false)

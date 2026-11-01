@@ -30,7 +30,8 @@ export type ProjectSpecification = Record<Exclude<ProjectSection, OptionalProjec
 
 export interface ProjectInput {
   name: string
-  specification: ProjectSpecification
+  specification?: ProjectSpecification | null
+  quoteId?: string | null
   diagrams?: ProjectDiagrams
 }
 
@@ -43,7 +44,8 @@ export interface ProjectSummary {
 }
 
 export interface Project extends ProjectSummary {
-  specification: ProjectSpecification
+  specification: ProjectSpecification | null
+  quoteId: string | null
   diagrams?: ProjectDiagrams
 }
 
