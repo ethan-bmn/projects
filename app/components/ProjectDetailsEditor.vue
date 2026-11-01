@@ -13,7 +13,14 @@ const items = computed(() => [
   ...(props.initial?.quoteId && !quotes.value?.some(quote => quote.id === props.initial?.quoteId)
     ? [{ label: 'Devis actuellement associé', value: props.initial.quoteId }]
     : []),
-  ...(quotes.value ?? []).map(quote => ({ label: [quote.number || 'Brouillon', quote.title].filter(Boolean).join(' · '), value: quote.id }))
+  ...(quotes.value ?? []).map(quote => ({
+    label: [
+      quote.number || 'Brouillon',
+      quote.title,
+      new Intl.NumberFormat('fr-FR', { style: 'currency', currency: quote.currencyCode }).format(quote.amountWithTax / 100)
+    ].filter(Boolean).join(' · '),
+    value: quote.id
+  }))
 ])
 </script>
 
