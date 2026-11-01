@@ -17,8 +17,8 @@ are never Docker build arguments.
 Use a server with Docker Engine and Docker Compose. Your existing reverse
 proxy or hosting platform provides domains, HTTPS certificates, and public
 routing. Configure its routes as described below. PostgreSQL and the SVG
-worker have no published host ports. App and ChartDB ports bind only to
-`127.0.0.1`, for access by a proxy running on the host.
+worker have no published host ports. App and ChartDB expose container ports
+3000 and 80 to a container proxy without reserving host ports.
 
 From the repository directory on the server:
 
@@ -30,7 +30,7 @@ chmod 600 .env.production
 Edit `.env.production` and set:
 
 - `NUXT_PUBLIC_CHARTDB_URL` to the browser-facing HTTPS URL of your ChartDB route.
-  Adjust `APP_PORT` and `CHARTDB_PORT` if ports 3000 or 8080 are already occupied.
+  `APP_PORT` and `CHARTDB_PORT` apply only with the optional host-port file below.
 - `POSTGRES_PASSWORD` to a strong database password.
 - `NUXT_OWNER_EMAIL` and either `NUXT_OWNER_PASSWORD_HASH` or `NUXT_OWNER_PASSWORD`.
   The plain password must be non-empty and at most 1024 characters. To generate a scrypt hash
@@ -127,7 +127,21 @@ PostgreSQL and is included in the database backup.
 
 ## Reverse proxy routing
 
-For a proxy running on the server host, route the app domain to
+For Coolify, use `docker-compose.yaml` alone, assign the app domain to container
+port 3000 and the ChartDB domain to container port 80, and set
+`NUXT_PUBLIC_CHARTDB_URL` to that ChartDB HTTPS URL. Remove any platform-configured
+host port mappings for these services before redeploying. Fixed host ports can
+conflict with other services or an earlier deployment still running.
+
+For a proxy running on the server host, enable loopback host ports with:
+
+```sh
+docker compose -f docker-compose.yaml -f docker-compose.host.yaml --env-file .env.production up -d --build --wait
+```
+
+Include both files in subsequent Compose commands for this installation. Set
+`APP_PORT` and `CHARTDB_PORT` if ports 3000 or 8080 are already occupied.
+Route the app domain to
 `http://127.0.0.1:3000` and the ChartDB domain to `http://127.0.0.1:8080` (or your
 configured host ports). For a proxy running in Docker, attach it to the
 `abby-projects_default` network and use `http://app:3000` and
@@ -167,3 +181,5 @@ from an HTTPS page. Give SVG/PDF export requests an upstream timeout of at least
 References: [Compose startup dependencies](https://docs.docker.com/compose/how-tos/startup-order),
 [Nuxt deployment](https://nuxt.com/docs/getting-started/deployment), and
 [Compose networks](https://docs.docker.com/reference/compose-file/networks/).
+For platform-specific domain and port settings, see
+[Coolify Compose applications](https://coolify.io/docs/applications/builds/docker-compose).

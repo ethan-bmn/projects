@@ -22,8 +22,8 @@ services:
       NUXT_ABBY_API_BASE_URL: ${NUXT_ABBY_API_BASE_URL:-https://api.app-abby.com}
       NUXT_CHARTDB_EXPORT_URL: http://chartdb-export:8081
       NUXT_PUBLIC_CHARTDB_URL: ${NUXT_PUBLIC_CHARTDB_URL:?Set the public HTTPS ChartDB URL in .env.production}
-    ports:
-      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    expose:
+      - "3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,8 +57,8 @@ services:
     environment:
       DISABLE_ANALYTICS: "true"
       HIDE_CHARTDB_CLOUD: "true"
-    ports:
-      - "127.0.0.1:${CHARTDB_PORT:-8080}:80"
+    expose:
+      - "80"
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/"]
       interval: 10s

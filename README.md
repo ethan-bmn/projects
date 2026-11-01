@@ -106,6 +106,17 @@ With Docker inside WSL, run the same commands from the repository directory in W
 wsl --exec sh -lc 'cd /mnt/c/Users/Ethan/Desktop/Dev/projects && docker compose --env-file .env.production up -d --build --wait'
 ```
 
+The stack publishes no host ports by default. Configure your container proxy to route
+to `app:3000` and `chartdb:80`. For local access or a proxy running on the host,
+include the optional host-port file in every Compose command:
+
+```bash
+docker compose -f docker-compose.yaml -f docker-compose.host.yaml --env-file .env.production up -d --build --wait
+```
+
+This binds the app to `127.0.0.1:3000` and ChartDB to `127.0.0.1:8080`.
+Set `APP_PORT` and `CHARTDB_PORT` to change those host ports.
+
 The default project name remains `abby-projects`, preserving the existing local `abby-projects_postgres_data` volume. Ordinary `docker compose --env-file .env.production down` preserves data; adding `--volumes` deletes it. Changing environment credentials does not update users/passwords in an existing PostgreSQL volume.
 
 ### Optional Nuxt development server
@@ -228,9 +239,10 @@ an external service and exports the saved specification.
 The full Compose stack includes ChartDB and its SVG renderer, with migrations
 applied automatically during startup; no profile is required.
 
-ChartDB is available at `http://localhost:8080`, bound to the local machine with
-analytics disabled. Set `CHARTDB_PORT` and `NUXT_PUBLIC_CHARTDB_URL` together to
-change its address. In **Architecture DB**, open ChartDB in a new tab or show its
+ChartDB has analytics disabled and is reachable through your proxy. With the optional
+`docker-compose.host.yaml`, it is also available at `http://localhost:8080`, bound
+to the local machine. Set `CHARTDB_PORT` and `NUXT_PUBLIC_CHARTDB_URL` together to
+change that local address. In **Architecture DB**, open ChartDB in a new tab or show its
 embedded editor. Export the diagram as JSON from ChartDB and import that file
 into the project, then save. The app previews the tables and relationships and
 keeps the original JSON; download it to reopen or modify it in ChartDB. ChartDB's
