@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fetchAbbyQuote, fetchAbbyQuotes, quoteBelongsToClient } from '../../server/services/abby-quotes'
+import { downloadAbbyQuotePdf, fetchAbbyQuote, fetchAbbyQuotes, quoteBelongsToClient } from '../../server/services/abby-quotes'
 
 const config = { apiKey: 'test-only', baseUrl: 'https://api.app-abby.com' }
 const organization = { kind: 'organization' as const, abbyId: 'org-1' }
@@ -12,6 +12,24 @@ function page(docs: unknown[], index = 1, hasNextPage = false) {
 }
 
 describe('Abby estimates', () => {
+  it('downloads the official PDF using the authenticated endpoint without following redirects', async () => {
+    const request = vi.fn<typeof fetch>().mockResolvedValue(new Response('%PDF-1.7\nfixture', { headers: { 'Content-Type': 'application/pdf' } }))
+    expect((await downloadAbbyQuotePdf(config, 'quote-1', request)).toString()).toBe('%PDF-1.7\nfixture')
+    expect(String(request.mock.calls[0]![0])).toBe('https://api.app-abby.com/v2/billing/quote-1/download?locale=fr')
+    expect(request.mock.calls[0]![1]).toMatchObject({ redirect: 'error', headers: { Authorization: 'Bearer test-only', Accept: 'application/pdf' } })
+  })
+
+  it('rejects non-PDF, oversized and unauthorized downloads', async () => {
+    for (const response of [
+      new Response('<html>login</html>', { headers: { 'Content-Type': 'text/html' } }),
+      new Response('invalid', { headers: { 'Content-Type': 'application/pdf' } }),
+      new Response(Buffer.alloc(10 * 1024 * 1024 + 1), { headers: { 'Content-Type': 'application/pdf' } }),
+      new Response('', { status: 401 })
+    ]) {
+      await expect(downloadAbbyQuotePdf(config, 'quote-1', vi.fn().mockResolvedValue(response))).rejects.toThrow()
+    }
+  })
+
   it('paginates, filters by organization and excludes documents belonging to other clients or types', async () => {
     const request = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(page([estimate(), estimate('other', { organizationId: 'other' }), { ...estimate('invoice'), type: 'invoice' }], 1, true))

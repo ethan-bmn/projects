@@ -12,7 +12,7 @@ let businessId: string
 let individualId: string
 
 beforeEach(async () => {
-  await database.sql`TRUNCATE projects, clients`
+  await database.sql`TRUNCATE quote_deliveries, projects, clients`
   const rows = await database.sql`
     INSERT INTO clients (kind, abby_id, name)
     VALUES ('organization', 'company', 'Atelier Dupont'), ('individual', 'person', 'Marie Durand') RETURNING id, kind

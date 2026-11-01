@@ -63,3 +63,40 @@ export async function fetchAbbyQuote(config: AbbyConfig, client: Pick<Client, 'k
   }
   return quote(payload, true)
 }
+
+export async function downloadAbbyQuotePdf(config: AbbyConfig, id: string, request: typeof fetch = fetch): Promise<Buffer> {
+  // Callers first verify the linked estimate belongs to the project's customer.
+  const url = endpoint(config, `/v2/billing/${encodeURIComponent(id)}/download`)
+  url.searchParams.set('locale', 'fr')
+  let response: Response
+  try {
+    response = await request(url, {
+      headers: { Authorization: `Bearer ${config.apiKey}`, Accept: 'application/pdf' },
+      redirect: 'error', signal: AbortSignal.timeout(30000)
+    })
+  } catch {
+    throw new AbbySyncError('Impossible de télécharger le PDF du devis depuis Abby.')
+  }
+  const limit = 10 * 1024 * 1024
+  if (!response.ok || !response.body || !response.headers.get('content-type')?.toLowerCase().startsWith('application/pdf')) {
+    await response.body?.cancel()
+    throw new AbbySyncError('Abby n’a pas renvoyé de PDF. Vérifiez que le devis est finalisé et accessible.')
+  }
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let size = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      size += value.byteLength
+      if (size > limit) throw new AbbySyncError('Le PDF du devis dépasse 10 Mo.')
+      chunks.push(value)
+    }
+  } finally {
+    await reader.cancel().catch(() => {})
+  }
+  const pdf = Buffer.concat(chunks)
+  if (pdf.subarray(0, 5).toString('ascii') !== '%PDF-') throw new AbbySyncError('Le document reçu d’Abby n’est pas un PDF valide.')
+  return pdf
+}
