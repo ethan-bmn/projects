@@ -235,14 +235,14 @@ describe('owner authentication', () => {
     const cookie = sessionCookie(await login())
     const otherCookie = sessionCookie(await login())
     const headers = { cookie, 'Content-Type': 'application/json' }
-    const changed = { email: 'changed@example.test', currentPassword: password, newPassword: 'changed-settings-password' }
+    const changed = { email: 'changed@example.test', currentPassword: password, newPassword: 'x' }
     try {
       const invalid = await fetch('/api/settings/account', {
         method: 'PUT', headers, body: JSON.stringify({ ...changed, currentPassword: 'wrong-password' })
       })
       expect(invalid.status).toBe(403)
-      const short = await fetch('/api/settings/account', { method: 'PUT', headers, body: JSON.stringify({ ...changed, newPassword: 'short' }) })
-      expect(short.status).toBe(400)
+      const oversized = await fetch('/api/settings/account', { method: 'PUT', headers, body: JSON.stringify({ ...changed, newPassword: 'x'.repeat(1025) }) })
+      expect(oversized.status).toBe(400)
       const response = await fetch('/api/settings/account', { method: 'PUT', headers, body: JSON.stringify(changed) })
       expect(response.status).toBe(200)
       expect(await response.json()).toEqual({ email: changed.email })

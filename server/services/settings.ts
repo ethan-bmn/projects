@@ -38,8 +38,8 @@ export function validateAccount(value: unknown) {
   if (typeof input.currentPassword !== 'string' || !input.currentPassword.length || input.currentPassword.length > 1024) {
     throw new SettingsError('Saisissez votre mot de passe actuel.')
   }
-  if (typeof input.newPassword !== 'string' || (input.newPassword !== '' && (input.newPassword.length < 12 || input.newPassword.length > 1024))) {
-    throw new SettingsError('Le nouveau mot de passe doit contenir entre 12 et 1024 caractères.')
+  if (typeof input.newPassword !== 'string' || input.newPassword.length > 1024) {
+    throw new SettingsError('Le nouveau mot de passe doit contenir au maximum 1024 caractères.')
   }
   return { email: accountEmail, currentPassword: input.currentPassword, newPassword: input.newPassword }
 }

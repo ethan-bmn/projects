@@ -16,7 +16,11 @@ describe('settings validation', () => {
       .toEqual({ email: 'owner@example.test', currentPassword: ' current ', newPassword: '' })
   })
 
-  it.each(['short', 'x'.repeat(1025), null])('rejects invalid new passwords', (newPassword) => {
+  it('accepts a short new password', () => {
+    expect(validateAccount({ email: 'owner@example.test', currentPassword: 'current', newPassword: 'x' }).newPassword).toBe('x')
+  })
+
+  it.each(['x'.repeat(1025), null])('rejects invalid new passwords', (newPassword) => {
     expect(() => validateAccount({ email: 'owner@example.test', currentPassword: 'current', newPassword })).toThrow()
   })
 })

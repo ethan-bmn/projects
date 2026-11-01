@@ -63,7 +63,7 @@ bun run typecheck
 Login reads the single owner account from PostgreSQL. Environment credentials are used only by the seed command. If `.env` already exists, add the authentication entries from `.env.example` without replacing your database settings.
 
 1. Set `NUXT_OWNER_EMAIL` to your email.
-2. Set `NUXT_OWNER_PASSWORD` to a password of at least 12 characters, or run `bun run auth:hash` and copy its output into `NUXT_OWNER_PASSWORD_HASH`. Set only one password option. Enclose the value in single quotes to preserve `$` characters. The seed stores a scrypt hash, never a plain password.
+2. Set `NUXT_OWNER_PASSWORD` to a non-empty password of at most 1024 characters, or run `bun run auth:hash` and copy its output into `NUXT_OWNER_PASSWORD_HASH`. Set only one password option. Enclose the value in single quotes to preserve `$` characters. The seed stores a scrypt hash, never a plain password.
 3. Set `NUXT_SESSION_PASSWORD` to a random secret of at least 32 characters. For example, generate one with `bun -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
 4. Start PostgreSQL, then run `bun run db:seed`. This applies migrations and creates the owner from `.env` if the account does not exist. Existing account settings are preserved.
 5. Restart Nuxt and visit `/auth`. Signing in redirects to `/`.
@@ -126,7 +126,7 @@ bun run dev -- --port 3001
 Open **Paramètres** in the header (`/settings`). Each section saves independently:
 
 - **Connexion Abby** saves, replaces, or removes the API key. Stored keys are never returned to the browser.
-- **Compte** edits the login email and optionally the password (12–1024 characters), after checking the current password. Account update attempts are limited to five per minute per IP address.
+- **Compte** edits the login email and optionally the password (up to 1024 characters), after checking the current password. Account update attempts are limited to five per minute per IP address.
 
 Deployment initialization preserves account changes. `bun run db:seed --update` is an explicit recovery action that reapplies credentials from the environment.
 

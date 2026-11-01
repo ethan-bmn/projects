@@ -214,14 +214,13 @@ function saveAccount() {
               <UFormField
                 label="Nouveau mot de passe"
                 name="new-password"
-                description="12 caractères minimum. Laissez vide pour conserver le mot de passe actuel."
+                description="Laissez vide pour conserver le mot de passe actuel."
               >
                 <UInput
                   v-model="account.newPassword"
                   name="new-password"
                   type="password"
                   autocomplete="new-password"
-                  :minlength="12"
                   :maxlength="1024"
                   class="w-full"
                 />
@@ -235,7 +234,6 @@ function saveAccount() {
                   name="confirm-password"
                   type="password"
                   autocomplete="new-password"
-                  :minlength="12"
                   :maxlength="1024"
                   :required="Boolean(account.newPassword)"
                   class="w-full"

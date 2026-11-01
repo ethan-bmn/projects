@@ -7,7 +7,7 @@ const shell = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe'
 const entrypoint = fileURLToPath(new URL('../../docker/entrypoint.sh', import.meta.url)).replace(/\\/g, '/')
 
 describe.skipIf(!existsSync(shell))('Docker app initialization', () => {
-  function start(seedExit: number) {
+  function start(seedExit: number, sessionPassword = 'test-session-secret-at-least-32-characters') {
     return spawnSync(shell, ['-c', `
 bun() {
   printf 'seed:%s\\n' "$*"
@@ -16,7 +16,7 @@ bun() {
 set -- sh -c 'printf "server-started\\n"'
 . "$ENTRYPOINT_PATH"
 `], {
-      env: { ...process.env, SEED_EXIT: String(seedExit), ENTRYPOINT_PATH: entrypoint },
+      env: { ...process.env, SEED_EXIT: String(seedExit), ENTRYPOINT_PATH: entrypoint, NUXT_SESSION_PASSWORD: sessionPassword },
       encoding: 'utf8'
     })
   }
@@ -37,6 +37,15 @@ set -- sh -c 'printf "server-started\\n"'
     expect(result.error).toBeUndefined()
     expect(result.status).toBe(7)
     expect(result.stdout).toContain('seed:scripts/seed-owner.ts')
+    expect(result.stdout).not.toContain('server-started')
+  })
+
+  it.each(['', 'short'])('reports an invalid session secret before initializing the database', (secret) => {
+    const result = start(0, secret)
+    expect(result.error).toBeUndefined()
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('NUXT_SESSION_PASSWORD must contain at least 32 characters')
+    expect(result.stdout).not.toContain('seed:')
     expect(result.stdout).not.toContain('server-started')
   })
 })

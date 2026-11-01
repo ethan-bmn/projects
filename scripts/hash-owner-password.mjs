@@ -31,8 +31,8 @@ if (process.stdin.isTTY) {
   password = password.replace(/\r?\n$/, '')
 }
 
-if (password.length < 12 || password.length > 1024) {
-  process.stderr.write('Use a password between 12 and 1024 characters.\n')
+if (!password.length || password.length > 1024) {
+  process.stderr.write('Use a non-empty password of at most 1024 characters.\n')
   process.exit(1)
 }
 

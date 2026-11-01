@@ -33,9 +33,16 @@ Edit `.env.production` and set:
   Adjust `APP_PORT` and `CHARTDB_PORT` if ports 3000 or 8080 are already occupied.
 - `POSTGRES_PASSWORD` to a strong database password.
 - `NUXT_OWNER_EMAIL` and either `NUXT_OWNER_PASSWORD_HASH` or `NUXT_OWNER_PASSWORD`.
-  The plain password must contain 12–1024 characters. To generate a scrypt hash
+  The plain password must be non-empty and at most 1024 characters. To generate a scrypt hash
   without installing Bun on the server, use the command below.
 - `NUXT_SESSION_PASSWORD` to a random secret of at least 32 characters.
+
+The 32-character requirement belongs to session encryption, not the owner's
+login password. If logs show `Password string too short (min 32 characters
+required)`, generate a new session secret with the command below, set it in
+`.env.production`, and recreate the app container. Reseeding the owner alone
+does not fix that error. The app entrypoint rejects a short session secret
+before starting the server.
 
 Quote hashes and passwords in single quotes in the environment file to
 preserve `$` characters.
@@ -90,6 +97,9 @@ the entrypoint preserves them during updates. For account recovery, set
 the owner credentials in `.env.production` and run
 `docker compose --env-file .env.production run --rm --no-deps app bun scripts/seed-owner.ts --update`
 while PostgreSQL is running.
+Set only one of `NUXT_OWNER_PASSWORD` and `NUXT_OWNER_PASSWORD_HASH` before
+forcing the seed. The `run` command reads the updated environment file and
+overwrites the existing owner's email/password; clients and projects are preserved.
 Changing `POSTGRES_*` does
 not change users/passwords in an existing PostgreSQL volume.
 
