@@ -78,9 +78,18 @@ async function save(input: ProjectInput) {
       class="mt-8 space-y-8"
     >
       <section class="space-y-3 border-t border-default pt-5">
-        <h2 class="text-lg font-semibold text-highlighted">
-          Devis Abby
-        </h2>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h2 class="text-lg font-semibold text-highlighted">
+            Devis Abby
+          </h2>
+          <UButton
+            :label="data.project.quoteId ? 'Modifier le devis' : 'Associer un devis'"
+            icon="i-lucide-pencil"
+            color="neutral"
+            variant="outline"
+            @click="editing = true; saveError = ''"
+          />
+        </div>
         <p
           v-if="!data.project.quoteId"
           class="text-sm text-muted"
