@@ -117,7 +117,7 @@ async function retrySignature(item: QuoteDelivery) {
     </h2>
     <p class="text-sm text-muted">
       Le PDF officiel Abby sera joint au message. Configurez l’expéditeur et les modèles dans les <NuxtLink
-        to="/settings#email"
+        to="/settings/email"
         class="underline"
       >paramètres e-mail</NuxtLink>.
     </p>
@@ -165,7 +165,7 @@ async function retrySignature(item: QuoteDelivery) {
           class="text-sm text-muted"
         >
           Documenso enverra une seconde invitation avec le devis original et un feuillet de signature à compléter. Votre <NuxtLink
-            to="/settings#documenso"
+            to="/settings/signature"
             class="underline"
           >clé API Documenso</NuxtLink> doit être configurée.
         </p>
@@ -281,70 +281,75 @@ async function retrySignature(item: QuoteDelivery) {
     >
       {{ message }}
     </p>
-    <div class="space-y-3 border-t border-default pt-4">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <h3 class="font-medium text-highlighted">
-          Historique des envois
-        </h3>
-        <UButton
-          label="Actualiser"
-          color="neutral"
-          variant="ghost"
-          :disabled="pending"
-          @click="loadHistory"
-        />
-      </div>
-      <p
-        v-if="historyError"
-        role="alert"
-        class="text-sm text-error"
-      >
-        {{ historyError }}
-      </p>
-      <p
-        v-else-if="!history.length"
-        class="text-sm text-muted"
-      >
-        Aucun envoi pour ce projet.
-      </p>
-      <ul
-        v-else
-        class="divide-y divide-default"
-      >
-        <li
-          v-for="item in history"
-          :key="item.id"
-          class="space-y-2 py-3 text-sm wrap-anywhere"
-        >
-          <p>{{ item.to }} · {{ new Date(item.createdAt).toLocaleString('fr-FR') }}</p>
-          <p>{{ item.subject }}</p>
-          <p class="text-muted">
-            {{ statusLabels[item.status] }}<template v-if="item.signatureStatus !== 'none'">
-              · {{ signatureLabels[item.signatureStatus] }}
-            </template>
-          </p>
-          <p
-            v-if="item.error"
-            class="text-error"
-          >
-            {{ item.error }}
-          </p>
-          <p
-            v-if="item.envelopeId"
-            class="text-muted"
-          >
-            Enveloppe {{ item.signatureProvider === 'docusign' ? 'DocuSign' : 'Documenso' }} : {{ item.envelopeId }}
-          </p>
+    <details
+      class="border-t border-default pt-4"
+      open
+    >
+      <summary class="cursor-pointer py-2 font-medium text-highlighted">
+        Historique des envois
+      </summary>
+      <div class="mt-3 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
           <UButton
-            v-if="item.signatureProvider === 'documenso' && item.status === 'sent' && ['pending', 'failed'].includes(item.signatureStatus)"
-            label="Envoyer l’invitation Documenso uniquement"
+            label="Actualiser"
             color="neutral"
-            variant="outline"
+            variant="ghost"
             :disabled="pending"
-            @click="retrySignature(item)"
+            @click="loadHistory"
           />
-        </li>
-      </ul>
-    </div>
+        </div>
+        <p
+          v-if="historyError"
+          role="alert"
+          class="text-sm text-error"
+        >
+          {{ historyError }}
+        </p>
+        <p
+          v-else-if="!history.length"
+          class="text-sm text-muted"
+        >
+          Aucun envoi pour ce projet.
+        </p>
+        <ul
+          v-else
+          class="divide-y divide-default"
+        >
+          <li
+            v-for="item in history"
+            :key="item.id"
+            class="space-y-2 py-3 text-sm wrap-anywhere"
+          >
+            <p>{{ item.to }} · {{ new Date(item.createdAt).toLocaleString('fr-FR') }}</p>
+            <p>{{ item.subject }}</p>
+            <p class="text-muted">
+              {{ statusLabels[item.status] }}<template v-if="item.signatureStatus !== 'none'">
+                · {{ signatureLabels[item.signatureStatus] }}
+              </template>
+            </p>
+            <p
+              v-if="item.error"
+              class="text-error"
+            >
+              {{ item.error }}
+            </p>
+            <p
+              v-if="item.envelopeId"
+              class="text-muted"
+            >
+              Enveloppe {{ item.signatureProvider === 'docusign' ? 'DocuSign' : 'Documenso' }} : {{ item.envelopeId }}
+            </p>
+            <UButton
+              v-if="item.signatureProvider === 'documenso' && item.status === 'sent' && ['pending', 'failed'].includes(item.signatureStatus)"
+              label="Envoyer l’invitation Documenso uniquement"
+              color="neutral"
+              variant="outline"
+              :disabled="pending"
+              @click="retrySignature(item)"
+            />
+          </li>
+        </ul>
+      </div>
+    </details>
   </section>
 </template>

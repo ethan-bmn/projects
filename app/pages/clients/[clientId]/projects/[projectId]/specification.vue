@@ -9,7 +9,7 @@ const clientId = String(route.params.clientId)
 const projectId = String(route.params.projectId)
 const { data, error } = await useFetch<ProjectDetail>(`/api/clients/${clientId}/projects/${projectId}`)
 if (error.value || !data.value) throw createError({ statusCode: error.value?.statusCode ?? 404, message: 'Projet introuvable.' })
-useSeoMeta({ title: () => `${data.value?.project.name} | Abby Projects` })
+useSeoMeta({ title: () => `Cahier des charges · ${data.value?.project.name} | Abby Projects` })
 
 const editing = ref(!data.value.project.specification)
 const pending = ref(false)
@@ -21,6 +21,10 @@ const config = useRuntimeConfig()
 const editor = useTemplateRef<{ markSaved: () => void }>('editor')
 const dbDrawing = computed(() => data.value?.project.diagrams?.database ? databaseDrawing(data.value.project.diagrams.database) : null)
 const planningDrawing = computed(() => data.value?.project.diagrams?.wbs.length ? wbsDrawing(data.value.project.diagrams.wbs) : null)
+const visibleSections = computed(() => projectSections.filter(section => !section.optional
+  || data.value?.project.specification?.[section.key]?.trim()
+  || (section.key === 'databaseArchitecture' && dbDrawing.value)
+  || (section.key === 'schedule' && planningDrawing.value)))
 
 async function exportDatabaseSvg() {
   if (exportingSvg.value || !data.value) return
@@ -75,16 +79,9 @@ async function save(input: ProjectInput) {
 <template>
   <UContainer
     v-if="data"
-    class="max-w-3xl py-8"
+    class="max-w-5xl py-8"
   >
-    <NuxtLink
-      :to="`/clients/${clientId}/projects/${projectId}`"
-      class="text-sm text-muted underline-offset-4 hover:underline"
-    >{{ data.project.name }} · Retour au projet</NuxtLink>
-    <div class="mt-5 flex flex-wrap items-start justify-between gap-4">
-      <h1 class="text-2xl font-semibold tracking-tight text-highlighted">
-        {{ editing ? 'Modifier le projet' : data.project.name }}
-      </h1>
+    <ProjectHeader :detail="data">
       <div
         v-if="!editing"
         class="flex flex-wrap gap-2"
@@ -103,7 +100,7 @@ async function save(input: ProjectInput) {
           @click="editing = true; saveError = ''"
         />
       </div>
-    </div>
+    </ProjectHeader>
     <p
       v-if="exportError"
       role="alert"
@@ -111,13 +108,6 @@ async function save(input: ProjectInput) {
     >
       {{ exportError }}
     </p>
-    <p
-      v-if="!data.client.active"
-      class="mt-4 text-sm text-muted"
-    >
-      Ce client est inactif dans Abby. Le projet est conservé.
-    </p>
-
     <ProjectEditor
       v-if="editing"
       ref="editor"
@@ -136,7 +126,7 @@ async function save(input: ProjectInput) {
         Cahier des charges
       </h2>
       <section
-        v-for="section in projectSections"
+        v-for="section in visibleSections"
         :key="section.key"
         class="border-t border-default pt-5"
       >

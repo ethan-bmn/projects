@@ -6,6 +6,7 @@ const apiToken = ref('')
 const pending = ref(false)
 const message = ref('')
 const saveError = ref('')
+useUnsavedChanges(() => Boolean(apiToken.value))
 
 async function save(disconnect = false) {
   if (pending.value) return
@@ -28,7 +29,7 @@ async function save(disconnect = false) {
   <section
     id="documenso"
     aria-labelledby="documenso-title"
-    class="py-8"
+    class="space-y-5"
   >
     <h2
       id="documenso-title"

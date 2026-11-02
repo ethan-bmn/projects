@@ -2,15 +2,22 @@
 import { emailVariables } from '#shared/types/email'
 import type { EmailSettings } from '#shared/types/email'
 
+const props = withDefaults(defineProps<{ mode?: 'connection' | 'templates' }>(), { mode: 'connection' })
+
 const { data, error, refresh } = await useFetch<EmailSettings>('/api/settings/email')
 const form = ref<EmailSettings | null>(null)
 const password = ref('')
 const pending = ref(false)
 const message = ref('')
 const saveError = ref('')
+const saved = ref('')
 watch(data, (value) => {
-  if (value) form.value = { ...value }
+  if (value) {
+    form.value = { ...value }
+    saved.value = JSON.stringify(value)
+  }
 }, { immediate: true })
+useUnsavedChanges(() => Boolean(password.value) || Boolean(form.value && JSON.stringify(form.value) !== saved.value))
 const securityOptions = [{ label: 'STARTTLS (généralement port 587)', value: 'starttls' }, { label: 'TLS (généralement port 465)', value: 'tls' }]
 
 async function save() {
@@ -45,16 +52,16 @@ async function verify() {
   <section
     id="email"
     aria-labelledby="email-title"
-    class="py-8"
+    class="space-y-5"
   >
     <h2
       id="email-title"
       class="text-lg font-semibold text-highlighted"
     >
-      Envoi des devis
+      {{ props.mode === 'templates' ? 'Modèles d’e-mail' : 'Expéditeur et SMTP' }}
     </h2>
     <p class="mt-2 text-sm text-muted">
-      Configurez votre expéditeur et le message envoyé avec le PDF Abby. La connexion SMTP utilise TLS.
+      {{ props.mode === 'templates' ? 'Personnalisez le message envoyé avec vos devis. Vous pourrez le prévisualiser avant chaque envoi.' : 'Configurez l’adresse et le serveur utilisés pour envoyer vos devis.' }}
     </p>
     <div
       v-if="error"
@@ -82,149 +89,153 @@ async function verify() {
         :disabled="pending"
         class="space-y-4"
       >
-        <div class="grid gap-4 sm:grid-cols-2">
-          <UFormField
-            label="Serveur SMTP"
-            name="smtp-host"
-          >
-            <UInput
-              v-model="form.smtpHost"
+        <template v-if="props.mode === 'connection'">
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UFormField
+              label="Serveur SMTP"
               name="smtp-host"
-              placeholder="smtp.example.com"
-              :maxlength="253"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField
-            label="Port SMTP"
-            name="smtp-port"
-            required
-          >
-            <UInput
-              v-model="form.smtpPort"
+            >
+              <UInput
+                v-model="form.smtpHost"
+                name="smtp-host"
+                placeholder="smtp.example.com"
+                :maxlength="253"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField
+              label="Port SMTP"
               name="smtp-port"
-              type="number"
-              :min="1"
-              :max="65535"
-              class="w-full"
               required
-            />
-          </UFormField>
-        </div>
-        <UFormField
-          label="Chiffrement"
-          name="smtp-security"
-        >
-          <USelect
-            v-model="form.smtpSecurity"
-            :items="securityOptions"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          label="Identifiant SMTP"
-          name="smtp-username"
-          description="Laissez vide si votre relais SMTP ne demande pas d’authentification."
-        >
-          <UInput
-            v-model="form.smtpUsername"
-            name="smtp-username"
-            autocomplete="off"
-            :maxlength="320"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          label="Mot de passe SMTP"
-          name="smtp-password"
-          :description="form.smtpPasswordConfigured ? 'Un mot de passe est enregistré. Laissez vide pour le conserver.' : 'Saisissez le mot de passe ou mot de passe d’application de votre messagerie.'"
-        >
-          <UInput
-            v-model="password"
-            name="smtp-password"
-            type="password"
-            autocomplete="new-password"
-            :maxlength="4096"
-            class="w-full"
-          />
-        </UFormField>
-        <div class="grid gap-4 sm:grid-cols-2">
+            >
+              <UInput
+                v-model="form.smtpPort"
+                name="smtp-port"
+                type="number"
+                :min="1"
+                :max="65535"
+                class="w-full"
+                required
+              />
+            </UFormField>
+          </div>
           <UFormField
-            label="Nom de l’expéditeur"
-            name="email-from-name"
+            label="Chiffrement"
+            name="smtp-security"
           >
-            <UInput
-              v-model="form.fromName"
-              name="email-from-name"
-              :maxlength="200"
+            <USelect
+              v-model="form.smtpSecurity"
+              :items="securityOptions"
               class="w-full"
             />
           </UFormField>
           <UFormField
-            label="Adresse de l’expéditeur"
-            name="email-from"
+            label="Identifiant SMTP"
+            name="smtp-username"
+            description="Laissez vide si votre relais SMTP ne demande pas d’authentification."
           >
             <UInput
-              v-model="form.fromEmail"
+              v-model="form.smtpUsername"
+              name="smtp-username"
+              autocomplete="off"
+              :maxlength="320"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField
+            label="Mot de passe SMTP"
+            name="smtp-password"
+            :description="form.smtpPasswordConfigured ? 'Un mot de passe est enregistré. Laissez vide pour le conserver.' : 'Saisissez le mot de passe ou mot de passe d’application de votre messagerie.'"
+          >
+            <UInput
+              v-model="password"
+              name="smtp-password"
+              type="password"
+              autocomplete="new-password"
+              :maxlength="4096"
+              class="w-full"
+            />
+          </UFormField>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UFormField
+              label="Nom de l’expéditeur"
+              name="email-from-name"
+            >
+              <UInput
+                v-model="form.fromName"
+                name="email-from-name"
+                :maxlength="200"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField
+              label="Adresse de l’expéditeur"
               name="email-from"
+            >
+              <UInput
+                v-model="form.fromEmail"
+                name="email-from"
+                type="email"
+                :maxlength="254"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+          <UFormField
+            label="Adresse de réponse (optionnelle)"
+            name="email-reply-to"
+          >
+            <UInput
+              v-model="form.replyTo"
+              name="email-reply-to"
               type="email"
               :maxlength="254"
               class="w-full"
             />
           </UFormField>
-        </div>
-        <UFormField
-          label="Adresse de réponse (optionnelle)"
-          name="email-reply-to"
-        >
-          <UInput
-            v-model="form.replyTo"
-            name="email-reply-to"
-            type="email"
-            :maxlength="254"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          label="Objet du message"
-          name="email-subject"
-          required
-        >
-          <UInput
-            v-model="form.subjectTemplate"
+        </template>
+        <template v-else>
+          <UFormField
+            label="Objet du message"
             name="email-subject"
-            :maxlength="250"
-            class="w-full"
             required
-          />
-        </UFormField>
-        <UFormField
-          label="Texte du message"
-          name="email-body"
-          required
-        >
-          <UTextarea
-            v-model="form.bodyTemplate"
+          >
+            <UInput
+              v-model="form.subjectTemplate"
+              name="email-subject"
+              :maxlength="250"
+              class="w-full"
+              required
+            />
+          </UFormField>
+          <UFormField
+            label="Texte du message"
             name="email-body"
-            :rows="10"
-            :maxlength="10000"
-            class="w-full"
             required
-          />
-        </UFormField>
-        <div class="space-y-2 text-sm text-muted">
-          <p>Variables disponibles (respectez les majuscules) :</p>
-          <ul class="flex flex-wrap gap-x-4 gap-y-2">
-            <li
-              v-for="variable in emailVariables"
-              :key="variable"
-            >
-              <code>{{ '${' + variable + '}' }}</code>
-            </li>
-          </ul>
-          <p>SIGNATURE_LINK est vide si aucun lien existant n’est ajouté. L’aperçu du devis affiche le message final avant l’envoi.</p>
-          <p>Pour Documenso, l’objet généré est limité à 254 caractères et le message à 5 000 caractères.</p>
-        </div>
+          >
+            <UTextarea
+              v-model="form.bodyTemplate"
+              name="email-body"
+              :rows="10"
+              :maxlength="10000"
+              class="w-full"
+              required
+            />
+          </UFormField>
+          <div class="space-y-2 text-sm text-muted">
+            <p>Variables disponibles (respectez les majuscules) :</p>
+            <ul class="flex flex-wrap gap-x-4 gap-y-2">
+              <li
+                v-for="variable in emailVariables"
+                :key="variable"
+              >
+                <code>{{ '${' + variable + '}' }}</code>
+              </li>
+            </ul>
+            <p>SIGNATURE_LINK est vide si aucun lien existant n’est ajouté. L’aperçu du devis affiche le message final avant l’envoi.</p>
+            <p>Pour Documenso, l’objet généré est limité à 254 caractères et le message à 5 000 caractères.</p>
+          </div>
+        </template>
       </fieldset>
       <p
         v-if="saveError"
@@ -247,6 +258,7 @@ async function verify() {
           :loading="pending"
         />
         <UButton
+          v-if="props.mode === 'connection'"
           type="button"
           label="Vérifier la connexion enregistrée"
           color="neutral"

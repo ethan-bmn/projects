@@ -8,7 +8,7 @@ Configure the app's SMTP sender and Documenso API token in **Paramètres**.
 
 ## SMTP and message templates
 
-In **Paramètres → Envoi des devis**, enter the SMTP hostname, port, encryption,
+In **Paramètres → Expéditeur et SMTP**, enter the SMTP hostname, port, encryption,
 username, and password provided by your email service. Choose STARTTLS for port
 587 or TLS for port 465, as specified by your provider. Certificate verification
 stays enabled. An internal authenticated relay may use another port; an empty
@@ -20,7 +20,8 @@ enregistrée**. This tests connectivity and authentication without sending an em
 it does not guarantee that the provider permits the sender or that a recipient
 will receive mail. A blank SMTP password input preserves the saved password.
 
-Configure the subject and plain-text message with these case-sensitive variables:
+Open **Paramètres → Modèles d’e-mail** to configure the subject and plain-text
+message with these case-sensitive variables:
 
 | Variable | Value |
 | --- | --- |

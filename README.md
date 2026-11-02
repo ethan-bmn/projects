@@ -138,7 +138,12 @@ bun run dev -- --port 3001
 Open **Paramètres** in the header (`/settings`). Each section saves independently:
 
 - **Connexion Abby** saves, replaces, or removes the API key. Stored keys are never returned to the browser.
+- **Expéditeur et SMTP** configures the quote sender and mail server; **Modèles d’e-mail** edits the message separately.
+- **Signature** manages the Documenso API token and opens the signing workspace.
 - **Compte** edits the login email and optionally the password (up to 1024 characters), after checking the current password. Account update attempts are limited to five per minute per IP address.
+
+See [application navigation](docs/ui.md) for the dedicated settings and project pages,
+mobile layouts, and UI verification notes.
 
 Deployment initialization preserves account changes. `bun run db:seed --update` is an explicit recovery action that reapplies credentials from the environment.
 
@@ -277,7 +282,8 @@ subtasks remain connected.
 ## Sending devis by email
 
 Configure SMTP, the sender, and reusable subject/message templates in
-**Paramètres → Envoi des devis**. Templates support variables such as
+**Paramètres → Expéditeur et SMTP**. Edit the subject and message separately in
+**Paramètres → Modèles d’e-mail**. Templates support variables such as
 `${PROJECT_NAME}`, `${CLIENT_NAME}`, and `${QUOTE_NUMBER}`. A project's associated
 Abby devis can be previewed and emailed as its official PDF attachment to one of
 the customer's email addresses. Add an existing signature link or connect the bundled Documenso instance

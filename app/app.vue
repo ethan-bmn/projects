@@ -2,7 +2,13 @@
 import { fr } from '@nuxt/ui/locale'
 
 const { loggedIn, user, clear } = useUserSession()
+const route = useRoute()
 const signingOut = ref(false)
+const navigation = [
+  { label: 'Clients', to: '/', icon: 'i-lucide-users', active: () => route.path === '/' || route.path.startsWith('/clients/') },
+  { label: 'Prospects', to: '/prospects', icon: 'i-lucide-contact-round', active: () => route.path.startsWith('/prospects') },
+  { label: 'Paramètres', to: '/settings', icon: 'i-lucide-settings', active: () => route.path.startsWith('/settings') }
+]
 
 async function signOut() {
   signingOut.value = true
@@ -28,67 +34,55 @@ useSeoMeta({
 
 <template>
   <UApp :locale="fr">
-    <UHeader
+    <header
       v-if="loggedIn"
-      :toggle="false"
-      :ui="{ root: 'h-auto', container: 'h-(--ui-header-height)' }"
+      class="border-b border-default bg-default"
     >
-      <template #left>
+      <UContainer class="flex flex-wrap items-center gap-x-8">
         <NuxtLink
           to="/"
-          class="rounded-md p-1 font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-primary"
+          class="flex h-16 items-center gap-2 font-semibold tracking-tight text-highlighted focus-visible:outline-2 focus-visible:outline-primary"
         >
+          <UIcon
+            name="i-lucide-folders"
+            class="size-5"
+          />
           Abby Projects
         </NuxtLink>
-      </template>
-
-      <template #bottom>
-        <UContainer>
-          <nav
-            aria-label="Navigation principale"
-            class="flex gap-1 border-t border-default py-2"
+        <nav
+          aria-label="Navigation principale"
+          class="order-3 flex w-full gap-6 overflow-x-auto md:order-0 md:w-auto"
+        >
+          <NuxtLink
+            v-for="item in navigation"
+            :key="item.to"
+            :to="item.to"
+            :aria-current="item.active() ? 'page' : undefined"
+            class="flex shrink-0 items-center gap-2 border-b-2 py-3 text-sm font-medium transition-colors md:py-5"
+            :class="item.active() ? 'border-primary text-highlighted' : 'border-transparent text-muted hover:text-highlighted'"
           >
-            <UButton
-              to="/"
-              label="Clients"
-              color="neutral"
-              variant="ghost"
-              exact
+            <UIcon
+              :name="item.icon"
+              class="hidden size-4 sm:block"
             />
-            <UButton
-              to="/prospects"
-              label="Prospects"
-              color="neutral"
-              variant="ghost"
-            />
-          </nav>
-        </UContainer>
-      </template>
-
-      <template #right>
-        <span class="hidden text-sm text-muted sm:block">{{ user?.email }}</span>
-        <UButton
-          to="/settings"
-          label="Paramètres"
-          aria-label="Paramètres"
-          icon="i-lucide-settings"
-          color="neutral"
-          variant="ghost"
-          :ui="{ label: 'hidden sm:inline' }"
-        />
-        <UColorModeButton />
-        <UButton
-          label="Se déconnecter"
-          aria-label="Se déconnecter"
-          icon="i-lucide-log-out"
-          color="neutral"
-          variant="ghost"
-          :ui="{ label: 'hidden sm:inline' }"
-          :loading="signingOut"
-          @click="signOut"
-        />
-      </template>
-    </UHeader>
+            {{ item.label }}
+          </NuxtLink>
+        </nav>
+        <div class="ml-auto flex items-center gap-1">
+          <span class="mr-3 hidden max-w-48 truncate text-sm text-muted xl:block">{{ user?.email }}</span>
+          <UColorModeButton />
+          <UButton
+            aria-label="Se déconnecter"
+            title="Se déconnecter"
+            icon="i-lucide-log-out"
+            color="neutral"
+            variant="ghost"
+            :loading="signingOut"
+            @click="signOut"
+          />
+        </div>
+      </UContainer>
+    </header>
 
     <UMain>
       <NuxtPage />

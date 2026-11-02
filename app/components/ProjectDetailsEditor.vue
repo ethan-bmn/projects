@@ -6,6 +6,7 @@ const props = defineProps<{ clientId: string, initial?: ProjectInput, pending: b
 const emit = defineEmits<{ submit: [input: ProjectInput], cancel: [] }>()
 const name = ref(props.initial?.name ?? '')
 const quoteId = ref(props.initial?.quoteId ?? '__none__')
+useUnsavedChanges(() => !props.pending && (name.value !== (props.initial?.name ?? '') || quoteId.value !== (props.initial?.quoteId ?? '__none__')))
 const { data: quotes, status, error: quoteError, refresh } = await useFetch<AbbyQuote[]>(`/api/clients/${props.clientId}/quotes`, { server: false, lazy: true })
 const quoteErrorMessage = computed(() => (quoteError.value?.data as { message?: string } | undefined)?.message || 'Impossible de récupérer les devis Abby.')
 const items = computed(() => [

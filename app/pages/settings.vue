@@ -1,269 +1,64 @@
 <script setup lang="ts">
-import type { GlobalSettings } from '#shared/types/settings'
-
-useSeoMeta({ title: 'Paramètres | Abby Projects' })
-
-const { data, error, refresh } = await useFetch<GlobalSettings>('/api/settings')
-const { fetch: refreshSession } = useUserSession()
-const account = reactive({ email: '', currentPassword: '', newPassword: '', confirmation: '' })
-const apiKey = ref('')
-const pending = reactive({ account: false, abby: false })
-const errors = reactive({ account: '', abby: '' })
-const messages = reactive({ account: '', abby: '' })
-
-watch(data, (settings) => {
-  if (!settings) return
-  account.email = settings.email
-}, { immediate: true })
-
-type Section = keyof typeof pending
-
-async function save(section: Section, action: () => Promise<void>) {
-  if (pending[section]) return
-  pending[section] = true
-  errors[section] = ''
-  messages[section] = ''
-  try {
-    await action()
-    messages[section] = 'Modifications enregistrées.'
-  } catch (cause) {
-    errors[section] = (cause as { data?: { message?: string } }).data?.message || (cause instanceof Error ? cause.message : 'Enregistrement impossible. Réessayez.')
-  } finally {
-    pending[section] = false
+const route = useRoute()
+const router = useRouter()
+const sections = [
+  { label: 'Vue d’ensemble', to: '/settings', icon: 'i-lucide-sliders-horizontal' },
+  { label: 'Connexion Abby', to: '/settings/abby', icon: 'i-lucide-refresh-cw' },
+  { label: 'Expéditeur et SMTP', to: '/settings/email', icon: 'i-lucide-mail' },
+  { label: 'Modèles d’e-mail', to: '/settings/templates', icon: 'i-lucide-file-text' },
+  { label: 'Signature', to: '/settings/signature', icon: 'i-lucide-pen-line' },
+  { label: 'Compte et sécurité', to: '/settings/account', icon: 'i-lucide-user-round' }
+]
+const selectedSection = computed({
+  get: () => route.path,
+  set: (path: string) => {
+    router.push(path)
   }
-}
-
-function saveAbby(disable = false) {
-  return save('abby', async () => {
-    const result = await $fetch('/api/settings/abby', { method: 'PUT', body: { apiKey: disable ? '' : apiKey.value } })
-    if (data.value) data.value.abbyConfigured = result.configured
-    apiKey.value = ''
-  })
-}
-
-function saveAccount() {
-  return save('account', async () => {
-    if (account.newPassword !== account.confirmation) throw new Error('Les nouveaux mots de passe ne correspondent pas.')
-    const result = await $fetch('/api/settings/account', {
-      method: 'PUT',
-      body: { email: account.email, currentPassword: account.currentPassword, newPassword: account.newPassword }
-    })
-    account.email = result.email
-    account.currentPassword = ''
-    account.newPassword = ''
-    account.confirmation = ''
-    await refreshSession()
-  })
-}
+})
+const sectionOptions = sections.map(section => ({ label: section.label, value: section.to }))
+useSeoMeta({ title: 'Paramètres | Abby Projects' })
+onMounted(() => {
+  const legacy: Record<string, string> = { '#abby': 'abby', '#email': 'email', '#documenso': 'signature', '#account': 'account' }
+  if (route.path === '/settings' && legacy[route.hash]) router.replace(`/settings/${legacy[route.hash]}`)
+})
 </script>
 
 <template>
-  <UContainer class="py-8">
-    <div class="max-w-2xl">
-      <UButton
-        to="/"
-        label="Retour aux clients"
-        icon="i-lucide-arrow-left"
-        color="neutral"
-        variant="link"
-        class="mb-4 px-0"
+  <UContainer class="py-8 sm:py-10">
+    <h1 class="text-2xl font-semibold tracking-tight text-highlighted">
+      Paramètres
+    </h1>
+    <p class="mt-2 text-sm text-muted">
+      Configurez vos connexions, vos envois et votre compte.
+    </p>
+    <div class="mt-8 grid min-w-0 gap-8 md:grid-cols-[13rem_minmax(0,1fr)] md:gap-12">
+      <USelect
+        v-model="selectedSection"
+        :items="sectionOptions"
+        aria-label="Section des paramètres"
+        class="w-full md:hidden"
       />
-      <h1 class="text-2xl font-semibold tracking-tight text-highlighted">
-        Paramètres
-      </h1>
-
-      <div
-        v-if="error"
-        class="mt-6 space-y-3"
+      <nav
+        aria-label="Paramètres"
+        class="hidden gap-1 md:flex md:flex-col md:self-start"
       >
-        <p
-          role="alert"
-          class="text-sm text-error"
+        <NuxtLink
+          v-for="section in sections"
+          :key="section.to"
+          :to="section.to"
+          :aria-current="route.path === section.to ? 'page' : undefined"
+          class="flex shrink-0 items-center gap-2 rounded-md px-3 py-2.5 text-sm transition-colors"
+          :class="route.path === section.to ? 'bg-muted font-medium text-highlighted' : 'text-muted hover:bg-muted hover:text-highlighted'"
         >
-          Impossible de charger les paramètres.
-        </p>
-        <UButton
-          label="Réessayer"
-          color="neutral"
-          variant="outline"
-          @click="refresh()"
-        />
-      </div>
-
-      <div
-        v-else-if="data"
-        class="mt-8 divide-y divide-default"
-      >
-        <section
-          id="abby"
-          aria-labelledby="abby-title"
-          class="pb-8"
-        >
-          <h2
-            id="abby-title"
-            class="text-lg font-semibold text-highlighted"
-          >
-            Connexion Abby
-          </h2>
-          <p class="mt-2 text-sm text-muted">
-            {{ data.abbyConfigured ? 'Une clé API est enregistrée. Saisissez une nouvelle clé pour la remplacer.' : 'Ajoutez votre clé API pour synchroniser vos clients.' }}
-          </p>
-          <form
-            class="mt-5 space-y-4"
-            @submit.prevent="saveAbby()"
-          >
-            <UFormField
-              label="Clé API Abby"
-              name="abby-api-key"
-            >
-              <UInput
-                v-model="apiKey"
-                name="abby-api-key"
-                type="password"
-                autocomplete="off"
-                :maxlength="8192"
-                :disabled="pending.abby"
-                class="w-full"
-                required
-              />
-            </UFormField>
-            <p
-              v-if="errors.abby"
-              role="alert"
-              class="text-sm text-error"
-            >
-              {{ errors.abby }}
-            </p>
-            <p
-              v-if="messages.abby"
-              role="status"
-              class="text-sm text-success"
-            >
-              {{ messages.abby }}
-            </p>
-            <div class="flex flex-wrap gap-3">
-              <UButton
-                type="submit"
-                label="Enregistrer la clé"
-                :loading="pending.abby"
-                :disabled="!apiKey.trim()"
-              />
-              <UButton
-                v-if="data.abbyConfigured"
-                type="button"
-                label="Supprimer la clé"
-                color="neutral"
-                variant="outline"
-                :disabled="pending.abby"
-                @click="saveAbby(true)"
-              />
-            </div>
-          </form>
-        </section>
-
-        <MailSettingsForm />
-        <DocumensoSettingsForm />
-
-        <section
-          id="account"
-          aria-labelledby="account-title"
-          class="py-8"
-        >
-          <h2
-            id="account-title"
-            class="text-lg font-semibold text-highlighted"
-          >
-            Compte
-          </h2>
-          <p class="mt-2 text-sm text-muted">
-            Confirmez votre mot de passe actuel pour modifier vos identifiants. Les autres sessions seront déconnectées après un changement.
-          </p>
-          <form
-            class="mt-5 space-y-4"
-            @submit.prevent="saveAccount"
-          >
-            <fieldset
-              :disabled="pending.account"
-              class="space-y-4"
-            >
-              <UFormField
-                label="Adresse e-mail de connexion"
-                name="account-email"
-              >
-                <UInput
-                  v-model="account.email"
-                  name="account-email"
-                  type="email"
-                  autocomplete="username"
-                  :maxlength="254"
-                  class="w-full"
-                  required
-                />
-              </UFormField>
-              <UFormField
-                label="Mot de passe actuel"
-                name="current-password"
-              >
-                <UInput
-                  v-model="account.currentPassword"
-                  name="current-password"
-                  type="password"
-                  autocomplete="current-password"
-                  :maxlength="1024"
-                  class="w-full"
-                  required
-                />
-              </UFormField>
-              <UFormField
-                label="Nouveau mot de passe"
-                name="new-password"
-                description="Laissez vide pour conserver le mot de passe actuel."
-              >
-                <UInput
-                  v-model="account.newPassword"
-                  name="new-password"
-                  type="password"
-                  autocomplete="new-password"
-                  :maxlength="1024"
-                  class="w-full"
-                />
-              </UFormField>
-              <UFormField
-                label="Confirmer le nouveau mot de passe"
-                name="confirm-password"
-              >
-                <UInput
-                  v-model="account.confirmation"
-                  name="confirm-password"
-                  type="password"
-                  autocomplete="new-password"
-                  :maxlength="1024"
-                  :required="Boolean(account.newPassword)"
-                  class="w-full"
-                />
-              </UFormField>
-            </fieldset>
-            <p
-              v-if="errors.account"
-              role="alert"
-              class="text-sm text-error"
-            >
-              {{ errors.account }}
-            </p>
-            <p
-              v-if="messages.account"
-              role="status"
-              class="text-sm text-success"
-            >
-              {{ messages.account }}
-            </p>
-            <UButton
-              type="submit"
-              label="Enregistrer les identifiants"
-              :loading="pending.account"
-            />
-          </form>
-        </section>
+          <UIcon
+            :name="section.icon"
+            class="size-4 shrink-0"
+          />
+          {{ section.label }}
+        </NuxtLink>
+      </nav>
+      <div class="min-w-0 max-w-2xl">
+        <NuxtPage />
       </div>
     </div>
   </UContainer>

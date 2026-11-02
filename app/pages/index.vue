@@ -65,6 +65,8 @@ async function synchronize() {
         label="Synchroniser les clients"
         icon="i-lucide-refresh-cw"
         :loading="syncing"
+        color="neutral"
+        variant="outline"
         :disabled="!data?.sync.configured || status === 'pending'"
         @click="synchronize"
       />
@@ -75,6 +77,10 @@ async function synchronize() {
       class="mt-4 text-sm text-muted"
     >
       La connexion à Abby n’est pas encore configurée.
+      <NuxtLink
+        to="/settings/abby"
+        class="ml-1 underline underline-offset-4"
+      >Connecter Abby</NuxtLink>
     </p>
     <p
       v-else-if="data"
@@ -101,7 +107,7 @@ async function synchronize() {
     <UFormField
       label="Type de client"
       name="kind"
-      class="mt-6"
+      class="mt-6 border-t border-default pt-5"
     >
       <USelect
         v-model="kind"
@@ -134,7 +140,7 @@ async function synchronize() {
               </th>
               <th
                 scope="col"
-                class="px-4 py-3 font-medium"
+                class="hidden px-4 py-3 font-medium sm:table-cell"
               >
                 Type
               </th>
@@ -179,7 +185,7 @@ async function synchronize() {
               <tr
                 v-for="client in data.clients"
                 :key="client.id"
-                class="border-b border-default last:border-0"
+                class="border-b border-default transition-colors last:border-0 hover:bg-muted"
               >
                 <td class="px-4 py-3 font-medium text-highlighted">
                   <NuxtLink
@@ -195,10 +201,10 @@ async function synchronize() {
                     {{ client.commercialName }}
                   </p>
                 </td>
-                <td class="px-4 py-3 text-muted">
+                <td class="px-4 py-3 text-muted wrap-anywhere">
                   {{ client.emails.join(', ') || '—' }}
                 </td>
-                <td class="px-4 py-3 text-muted">
+                <td class="hidden px-4 py-3 text-muted sm:table-cell">
                   {{ client.kind === 'organization' ? 'Entreprise' : 'Particulier' }}
                 </td>
               </tr>

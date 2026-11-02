@@ -144,7 +144,7 @@ async function remove() {
       :aria-busy="status === 'pending'"
       class="mt-4 overflow-hidden rounded-lg border border-default"
     >
-      <div class="overflow-x-auto">
+      <div class="hidden overflow-x-auto md:block">
         <table class="w-full min-w-2xl text-left text-sm">
           <thead class="border-b border-default bg-muted text-muted">
             <tr>
@@ -285,6 +285,94 @@ async function remove() {
           </tbody>
         </table>
       </div>
+      <div
+        v-if="error || status === 'pending' || !data?.prospects.length"
+        class="px-5 py-10 text-center text-sm md:hidden"
+      >
+        <p
+          v-if="error"
+          role="alert"
+          class="text-error"
+        >
+          Impossible de charger les prospects.
+        </p>
+        <p
+          v-else-if="status === 'pending'"
+          role="status"
+          class="text-muted"
+        >
+          Chargement des prospects…
+        </p>
+        <p
+          v-else
+          class="text-muted"
+        >
+          {{ search ? 'Aucun prospect ne correspond à cette recherche.' : 'Aucun prospect. Ajoutez votre premier contact.' }}
+        </p>
+      </div>
+      <ul
+        v-else
+        class="divide-y divide-default md:hidden"
+      >
+        <li
+          v-for="prospect in data.prospects"
+          :key="prospect.id"
+          class="space-y-4 p-5"
+        >
+          <div>
+            <h2 class="font-medium text-highlighted">
+              {{ prospect.name }}
+            </h2>
+            <p class="mt-1 text-sm text-muted">
+              {{ prospect.domain }}
+            </p>
+          </div>
+          <div class="space-y-2 text-sm">
+            <a
+              v-if="prospect.email"
+              :href="`mailto:${prospect.email}`"
+              class="block underline-offset-4 wrap-anywhere hover:underline"
+            >{{ prospect.email }}</a>
+            <a
+              v-if="prospect.phone"
+              :href="`tel:${prospect.phone}`"
+              class="block hover:underline"
+            >{{ prospect.phone }}</a>
+            <a
+              v-if="prospect.websiteUrl"
+              :href="prospect.websiteUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="flex items-center gap-1 text-muted hover:underline"
+            >Ouvrir le site <UIcon
+              name="i-lucide-external-link"
+              class="size-3"
+            /></a>
+          </div>
+          <p
+            v-if="prospect.idea"
+            class="text-sm leading-6 text-muted wrap-anywhere"
+          >
+            {{ prospect.idea }}
+          </p>
+          <div class="flex gap-2">
+            <UButton
+              label="Modifier"
+              icon="i-lucide-pencil"
+              color="neutral"
+              variant="outline"
+              @click="openForm(prospect)"
+            />
+            <UButton
+              icon="i-lucide-trash-2"
+              :aria-label="`Supprimer ${prospect.name}`"
+              color="error"
+              variant="ghost"
+              @click="confirmDelete(prospect)"
+            />
+          </div>
+        </li>
+      </ul>
     </section>
 
     <div

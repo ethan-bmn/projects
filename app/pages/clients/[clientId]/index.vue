@@ -26,7 +26,7 @@ function formatDate(value: string) {
         <h1 class="text-2xl font-semibold tracking-tight text-highlighted">
           {{ data.client.name }}
         </h1>
-        <p class="mt-2 text-sm text-muted">
+        <p class="mt-2 text-sm text-muted wrap-anywhere">
           {{ data.client.kind === 'organization' ? 'Entreprise' : 'Particulier' }} · {{ data.client.emails.join(', ') || 'Aucune adresse e-mail' }}
         </p>
       </div>
