@@ -41,7 +41,7 @@ describe('database error diagnostics', () => {
     expect(formatDatabaseError(error, {})).toBe('Connection refused')
   })
 
-  it.each(['ENOTFOUND', 'EAI_AGAIN'])('identifies the effective database hostname for %s without credentials', (code) => {
+  it.each(['ENOTFOUND', 'EAI_AGAIN', 'ESERVFAIL'])('identifies the effective database hostname for %s without credentials', (code) => {
     const error = Object.assign(new Error('getaddrinfo failed'), { code })
     const output = formatDatabaseError(error, {
       DATABASE_URL: 'postgresql://user:password@ignored-host/db',
@@ -52,6 +52,9 @@ describe('database error diagnostics', () => {
     expect(output).not.toContain('ignored-host')
     expect(output).not.toContain('private-password')
     expect(output).not.toContain('private-db')
+    if (code === 'ESERVFAIL') {
+      expect(output).toContain('DNS resolver returned a server failure')
+    }
   })
 
   it('does not expose malformed connection URLs in DNS diagnostics', () => {

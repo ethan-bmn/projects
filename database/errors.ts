@@ -23,7 +23,7 @@ export function formatDatabaseError(error: unknown, env: Record<string, string |
     })) {
       if (details[field] !== undefined) lines.push(`  ${label}: ${details[field]}`)
     }
-    if (details.code === 'ENOTFOUND' || details.code === 'EAI_AGAIN') {
+    if (['ENOTFOUND', 'EAI_AGAIN', 'ESERVFAIL'].includes(String(details.code))) {
       const url = env.NUXT_DATABASE_URL || env.DATABASE_URL
       if (url) {
         try {
@@ -33,6 +33,9 @@ export function formatDatabaseError(error: unknown, env: Record<string, string |
         }
       }
       lines.push('  Check the database hostname and shared Docker network; the Compose database alias is postgres.')
+      if (details.code === 'ESERVFAIL') {
+        lines.push('  The DNS resolver returned a server failure. Check hostname resolution inside the app container and the Docker DNS service on the host.')
+      }
     }
     current = details.cause
   }

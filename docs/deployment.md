@@ -135,11 +135,28 @@ conflict with other services or an earlier deployment still running.
 
 The default network declares explicit aliases for `postgres`, `chartdb`, and
 `chartdb-export` so internal URLs keep working when the platform renames services.
-If the owner seed reports `ENOTFOUND`, check the database hostname in the logs
+If the owner seed reports `ENOTFOUND`, `EAI_AGAIN`, or `ESERVFAIL`, check the database hostname in the logs
 and verify that the app and PostgreSQL share this network in Coolify's generated
 Compose configuration. Explicit `NUXT_DATABASE_URL` or `DATABASE_URL` values take
 precedence over the container-generated URL; remove stale overrides to use
 `postgres:5432`. Redeploy the whole stack after changing network aliases.
+
+`ESERVFAIL` means the DNS resolver returned a server failure before the app could
+connect to PostgreSQL. From the server's Compose directory, test the effective
+hostname in a one-off app container, even if the normal app is restarting:
+
+```sh
+docker compose --env-file .env.production run --rm --no-deps app node --input-type=module -e 'import { lookup } from "node:dns/promises"; const host = new URL(process.env.NUXT_DATABASE_URL || process.env.DATABASE_URL).hostname; console.log("Database hostname:", host); try { console.log(await lookup(host, { all: true })); } catch (error) { console.error("DNS lookup failed:", error.code); process.exitCode = 1; }'
+```
+
+In Coolify's app terminal, prefix the `node --input-type=module ...` command with
+`node docker/entrypoint.mjs` so it generates the same database URL as startup.
+If `postgres` fails to resolve, check
+that the PostgreSQL container is running and both containers share a network
+with the `postgres` alias. If those settings are correct and resolution still
+fails, investigate the Docker DNS service on the host. For an external database
+hostname, check its DNS records and the container's configured resolver. Changing
+the owner password cannot fix a hostname resolution failure.
 
 For a proxy running on the server host, enable loopback host ports with:
 
