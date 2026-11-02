@@ -22,3 +22,9 @@ logs
 .env
 .env.*
 !.env.example
+
+# Local document signing certificates
+*.p12
+*.pfx
+private.key
+certificate.crt

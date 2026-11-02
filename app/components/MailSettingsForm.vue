@@ -223,7 +223,7 @@ async function verify() {
             </li>
           </ul>
           <p>SIGNATURE_LINK est vide si aucun lien existant n’est ajouté. L’aperçu du devis affiche le message final avant l’envoi.</p>
-          <p>Pour DocuSign, l’objet généré doit rester sous 100 caractères et le message sous 10 000 caractères.</p>
+          <p>Pour Documenso, l’objet généré est limité à 254 caractères et le message à 5 000 caractères.</p>
         </div>
       </fieldset>
       <p

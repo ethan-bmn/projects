@@ -7,7 +7,7 @@ import { downloadAbbyQuotePdf, fetchAbbyQuote } from './abby-quotes'
 import { getProject } from './projects'
 import { getMailSettings, mailTransport } from './mail-settings'
 import { emailAddress, hasEmailControls, renderEmailTemplate } from './email-templates'
-import { envelopeDefinition, getDocusignSettings, sendDocusignEnvelope } from './docusign'
+import { envelopeDefinition, getDocumensoSettings, sendDocumensoEnvelope } from './documenso'
 import { SettingsError } from './settings'
 
 interface DeliveryRow {
@@ -24,13 +24,15 @@ interface DeliveryRow {
   status: QuoteDelivery['status']
   signature_status: QuoteDelivery['signatureStatus']
   envelope_id: string | null
+  signature_provider: 'docusign' | 'documenso'
   error: string | null
   created_at: Date
 }
 
 function delivery(row: DeliveryRow): QuoteDelivery {
   return { id: row.id, quoteId: row.quote_id, to: row.recipient, subject: row.subject, createdAt: new Date(row.created_at).toISOString(),
-    status: row.status, signatureStatus: row.signature_status, envelopeId: row.envelope_id, error: row.error }
+    status: row.status, signatureStatus: row.signature_status, envelopeId: row.envelope_id,
+    signatureProvider: row.signature_status === 'none' ? null : row.signature_provider, error: row.error }
 }
 
 function hash(value: unknown) {
@@ -42,7 +44,7 @@ export function validateQuoteEmailInput(value: unknown) {
   const input = value as Record<string, unknown>
   const to = emailAddress(input.to)
   if (input.signerName !== undefined && (typeof input.signerName !== 'string' || input.signerName.length > 100 || hasEmailControls(input.signerName))) throw new SettingsError('Le nom du signataire est invalide (100 caractères maximum).')
-  if (typeof input.docusign !== 'boolean' || typeof input.signatureLink !== 'string' || input.signatureLink.length > 2000) throw new SettingsError('Les options de signature sont invalides.')
+  if (typeof input.documenso !== 'boolean' || typeof input.signatureLink !== 'string' || input.signatureLink.length > 2000) throw new SettingsError('Les options de signature sont invalides.')
   if (input.signatureLink) {
     let url: URL
     try {
@@ -51,9 +53,9 @@ export function validateQuoteEmailInput(value: unknown) {
       throw new SettingsError('Le lien de signature est invalide.')
     }
     if (url.protocol !== 'https:' || url.username || url.password || hasEmailControls(input.signatureLink)) throw new SettingsError('Le lien de signature doit utiliser HTTPS.')
-    if (input.docusign) throw new SettingsError('Choisissez un lien existant ou une nouvelle demande DocuSign.')
+    if (input.documenso) throw new SettingsError('Choisissez un lien existant ou une nouvelle demande Documenso.')
   }
-  return { to, docusign: input.docusign, signatureLink: input.signatureLink, signerName: typeof input.signerName === 'string' ? input.signerName.trim() : '' }
+  return { to, documenso: input.documenso, signatureLink: input.signatureLink, signerName: typeof input.signerName === 'string' ? input.signerName.trim() : '' }
 }
 
 async function context(sql: postgres.Sql, clientId: string, projectId: string, abby: AbbyConfig, value: unknown) {
@@ -65,9 +67,9 @@ async function context(sql: postgres.Sql, clientId: string, projectId: string, a
   if (!settings.configured) throw new SettingsError('Configurez SMTP dans les paramètres avant d’envoyer un devis.', 409)
   const quote = await fetchAbbyQuote(abby, client, project.quoteId)
   if (quote.state === 'draft') throw new SettingsError('Finalisez le devis dans Abby avant de l’envoyer.', 409)
-  if (input.docusign && !(await getDocusignSettings(sql)).connected) throw new SettingsError('Connectez votre compte DocuSign dans les paramètres.', 409)
+  if (input.documenso && !(await getDocumensoSettings(sql)).configured) throw new SettingsError('Configurez la clé API Documenso dans les paramètres.', 409)
   const recipientName = input.signerName || client.name
-  if (input.docusign && (!recipientName.trim() || recipientName.length > 100 || hasEmailControls(recipientName))) throw new SettingsError('Saisissez le nom du signataire (100 caractères maximum).')
+  if (input.documenso && (!recipientName.trim() || recipientName.length > 100 || hasEmailControls(recipientName))) throw new SettingsError('Saisissez le nom du signataire (100 caractères maximum).')
   const variables: Record<EmailVariable, string> = {
     PROJECT_NAME: project.name, CLIENT_NAME: client.name, CLIENT_EMAIL: input.to,
     QUOTE_NUMBER: quote.number || '', QUOTE_TITLE: quote.title || '',
@@ -80,8 +82,8 @@ async function context(sql: postgres.Sql, clientId: string, projectId: string, a
   const filename = `devis-${(quote.number || quote.id).normalize('NFKD').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 100)}.pdf`
   const preview = { quoteId: project.quoteId, to: input.to, subject, text, filename,
     from: settings.fromName ? `${settings.fromName} <${settings.fromEmail}>` : settings.fromEmail,
-    replyTo: settings.replyTo, docusign: input.docusign, signerName: input.docusign ? recipientName : '' }
-  if (input.docusign) envelopeDefinition({ ...preview, id: '', name: recipientName, pdf: Buffer.alloc(0) })
+    replyTo: settings.replyTo, documenso: input.documenso, signerName: input.documenso ? recipientName : '' }
+  if (input.documenso) envelopeDefinition({ ...preview, id: '', name: recipientName })
   return { preview: { ...preview, previewHash: hash(preview) }, recipientName, settings }
 }
 
@@ -92,46 +94,50 @@ export async function previewQuoteEmail(sql: postgres.Sql, clientId: string, pro
 export async function getQuoteDeliveries(sql: postgres.Sql, clientId: string, projectId: string): Promise<QuoteDelivery[]> {
   await getProject(sql, clientId, projectId)
   // A process crash or network timeout must never appear as a confirmed failure:
-  // SMTP/DocuSign might already have accepted the message.
+  // SMTP/Documenso might already have accepted the message.
   await sql`
     UPDATE quote_deliveries SET
       status = CASE WHEN status = 'sending' THEN 'uncertain' WHEN status = 'preparing' THEN 'failed' ELSE status END,
       signature_status = CASE WHEN signature_status = 'sending' THEN 'uncertain' ELSE signature_status END,
-      error = 'Envoi interrompu. Vérifiez les messages envoyés et DocuSign avant tout nouvel envoi.', updated_at = now()
+      error = 'Envoi interrompu. Vérifiez les messages envoyés et le service de signature avant tout nouvel envoi.', updated_at = now()
     WHERE project_id = ${projectId} AND updated_at < now() - interval '10 minutes'
       AND (status IN ('preparing', 'sending') OR signature_status = 'sending')
   `
   const rows = await sql<DeliveryRow[]>`
-    SELECT id, quote_id, recipient, subject, created_at, status, signature_status, envelope_id, error
+    SELECT id, quote_id, recipient, subject, created_at, status, signature_status, envelope_id, signature_provider, error
     FROM quote_deliveries WHERE project_id = ${projectId} ORDER BY created_at DESC LIMIT 20
   `
   return rows.map(delivery)
 }
 
-export const quoteEmailDependencies = { downloadPdf: downloadAbbyQuotePdf, mailer: mailTransport, sendEnvelope: sendDocusignEnvelope }
+export const quoteEmailDependencies = { downloadPdf: downloadAbbyQuotePdf, mailer: mailTransport, sendEnvelope: sendDocumensoEnvelope }
 
 export async function requestDeliverySignature(sql: postgres.Sql, clientId: string, projectId: string, id: string, secret: string, dependencies = quoteEmailDependencies) {
   await getProject(sql, clientId, projectId)
   const [row] = await sql<DeliveryRow[]>`
     UPDATE quote_deliveries SET signature_status = 'sending', error = NULL, updated_at = now()
     WHERE id = ${id} AND project_id = ${projectId} AND status = 'sent'
-      AND signature_status IN ('pending', 'failed') AND envelope_id IS NULL AND pdf IS NOT NULL RETURNING *
+      AND signature_status IN ('pending', 'failed') AND signature_provider = 'documenso' AND pdf IS NOT NULL RETURNING *
   `
   if (!row) throw new SettingsError('La demande de signature est déjà envoyée, en cours ou nécessite une vérification manuelle.', 409)
   try {
     const envelopeId = await dependencies.sendEnvelope(sql, secret, {
-      id: row.id, to: row.recipient, name: row.recipient_name, subject: row.subject, text: row.body, filename: row.filename, pdf: row.pdf!
+      id: row.id, to: row.recipient, name: row.recipient_name, subject: row.subject, text: row.body, filename: row.filename, pdf: row.pdf!,
+      envelopeId: row.envelope_id,
+      onCreated: async (envelopeId) => {
+        await sql`UPDATE quote_deliveries SET envelope_id = ${envelopeId}, updated_at = now() WHERE id = ${id}`
+      }
     })
     const [result] = await sql<DeliveryRow[]>`
       UPDATE quote_deliveries SET signature_status = 'sent', envelope_id = ${envelopeId}, pdf = NULL, error = NULL, updated_at = now() WHERE id = ${id} RETURNING *
     `
     return delivery(result!)
   } catch (error) {
-    // A timeout can occur after DocuSign sent the invitation. Do not auto-retry.
+    // A timeout can occur after Documenso sent the invitation. Do not auto-retry.
     const uncertain = !(error instanceof SettingsError) || error.message.includes('pas confirmé')
     const [result] = await sql<DeliveryRow[]>`
       UPDATE quote_deliveries SET signature_status = ${uncertain ? 'uncertain' : 'failed'},
-        error = ${error instanceof SettingsError ? error.message : 'DocuSign n’a pas confirmé l’envoi. Vérifiez votre compte.'}, updated_at = now() WHERE id = ${id} RETURNING *
+        error = ${error instanceof SettingsError ? error.message : 'Documenso n’a pas confirmé l’envoi. Vérifiez votre compte.'}, updated_at = now() WHERE id = ${id} RETURNING *
     `
     return delivery(result!)
   }
@@ -158,7 +164,7 @@ export async function sendQuoteEmail(sql: postgres.Sql, clientId: string, projec
     if (count >= 5) throw new SettingsError('Limite de cinq envois par minute atteinte pour ce projet.', 429)
     return transaction<DeliveryRow[]>`
       INSERT INTO quote_deliveries (id, project_id, quote_id, recipient, recipient_name, subject, body, filename, request_hash, signature_status)
-      VALUES (${id}, ${projectId}, ${preview.quoteId}, ${preview.to}, ${recipientName}, ${preview.subject}, ${preview.text}, ${preview.filename}, ${requestHash}, ${options.docusign ? 'pending' : 'none'})
+      VALUES (${id}, ${projectId}, ${preview.quoteId}, ${preview.to}, ${recipientName}, ${preview.subject}, ${preview.text}, ${preview.filename}, ${requestHash}, ${options.documenso ? 'pending' : 'none'})
       ON CONFLICT (id) DO NOTHING RETURNING *
     `
   })
@@ -174,7 +180,7 @@ export async function sendQuoteEmail(sql: postgres.Sql, clientId: string, projec
     try {
       // Verify the connection before marking a delivery as potentially sent.
       await transport.verify()
-      await sql`UPDATE quote_deliveries SET status = 'sending', pdf = ${options.docusign ? pdf : null}, updated_at = now() WHERE id = ${id}`
+      await sql`UPDATE quote_deliveries SET status = 'sending', pdf = ${options.documenso ? pdf : null}, updated_at = now() WHERE id = ${id}`
       sending = true
       const info = await transport.sendMail({
         from: { name: settings.fromName, address: settings.fromEmail }, to: preview.to, replyTo: settings.replyTo || undefined,
@@ -198,7 +204,7 @@ export async function sendQuoteEmail(sql: postgres.Sql, clientId: string, projec
     `
     return delivery(result!)
   }
-  if (options.docusign) return requestDeliverySignature(sql, clientId, projectId, id, secret, dependencies)
+  if (options.documenso) return requestDeliverySignature(sql, clientId, projectId, id, secret, dependencies)
   const [result] = await sql<DeliveryRow[]>`SELECT * FROM quote_deliveries WHERE id = ${id}`
   return delivery(result!)
 }

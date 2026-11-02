@@ -86,13 +86,13 @@ Coverage includes guest redirects, signed-in navigation, expired sessions, rejec
 
 ### Full stack
 
-Use Docker with a Compose version supporting `up --wait`, and start the Docker engine. The single `docker-compose.yaml` runs Nuxt, PostgreSQL 18, automatic migrations and owner setup, ChartDB, and its SVG export worker. Copy the environment template once if `.env.production` does not already exist:
+Use Docker with a Compose version supporting `up --wait`, and start the Docker engine. The single `docker-compose.yaml` runs Nuxt, PostgreSQL 18, automatic migrations and owner setup, ChartDB, its SVG export worker, and Documenso with a separate PostgreSQL database. Copy the environment template once if `.env.production` does not already exist:
 
 ```powershell
 Copy-Item .env.example .env.production
 ```
 
-On macOS/Linux, use `cp .env.example .env.production`. Set the database password, owner credentials, session secret, and browser-facing ChartDB URL as described in [the deployment guide](docs/deployment.md). The containerized app uses production mode, including secure session cookies requiring HTTPS.
+On macOS/Linux, use `cp .env.example .env.production`. Set the database password, owner credentials, session secret, browser-facing ChartDB URL, and the [Documenso settings](docs/documenso.md) as described in [the deployment guide](docs/deployment.md). The containerized app uses production mode, including secure session cookies requiring HTTPS.
 
 ```bash
 docker compose --env-file .env.production config --quiet
@@ -107,15 +107,16 @@ wsl --exec sh -lc 'cd /mnt/c/Users/Ethan/Desktop/Dev/projects && docker compose 
 ```
 
 The stack publishes no host ports by default. Configure your container proxy to route
-to `app:3000` and `chartdb:80`. For local access or a proxy running on the host,
+to `app:3000`, `chartdb:80`, and `documenso:3000` on separate domains. For local access or a proxy running on the host,
 include the optional host-port file in every Compose command:
 
 ```bash
 docker compose -f docker-compose.yaml -f docker-compose.host.yaml --env-file .env.production up -d --build --wait
 ```
 
-This binds the app to `127.0.0.1:3000` and ChartDB to `127.0.0.1:8080`.
-Set `APP_PORT` and `CHARTDB_PORT` to change those host ports.
+This binds the app to `127.0.0.1:3000`, ChartDB to `127.0.0.1:8080`, and
+Documenso to `127.0.0.1:8082`. Set `APP_PORT`, `CHARTDB_PORT`, and
+`DOCUMENSO_PORT` to change those host ports.
 
 The default project name remains `abby-projects`, preserving the existing local `abby-projects_postgres_data` volume. Ordinary `docker compose --env-file .env.production down` preserves data; adding `--volumes` deletes it. Changing environment credentials does not update users/passwords in an existing PostgreSQL volume.
 
@@ -279,20 +280,20 @@ Configure SMTP, the sender, and reusable subject/message templates in
 **Paramètres → Envoi des devis**. Templates support variables such as
 `${PROJECT_NAME}`, `${CLIENT_NAME}`, and `${QUOTE_NUMBER}`. A project's associated
 Abby devis can be previewed and emailed as its official PDF attachment to one of
-the customer's email addresses. Add an existing signature link or connect DocuSign
+the customer's email addresses. Add an existing signature link or connect the bundled Documenso instance
 to create and send a separate signature invitation. Delivery history records SMTP
-acceptance and DocuSign outcomes independently.
+acceptance and Documenso outcomes independently.
 
 See [the devis email guide](docs/quote-email.md) for setup, template variables,
-DocuSign authorization, and retry behavior. Database migrations run automatically
+Documenso API token setup, and retry behavior. Database migrations run automatically
 on container startup.
 
 ## Production
 
 The complete production stack is defined in
 [`docker-compose.yaml`](docker-compose.yaml), also used for development: Nuxt,
-PostgreSQL, automatic migrations and owner setup, ChartDB, and its SVG export
-worker. Your existing proxy or hosting platform handles HTTPS. Copy
+PostgreSQL, automatic migrations and owner setup, ChartDB, its SVG export
+worker, and Documenso with a separate database. Your existing proxy or hosting platform handles HTTPS. Copy
 `.env.example` to `.env.production`, set the public ChartDB URL and
 credentials, then run:
 

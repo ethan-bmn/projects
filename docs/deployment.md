@@ -1,8 +1,8 @@
 # Production deployment
 
 The single `docker-compose.yaml` runs the Nuxt app, PostgreSQL 18,
-ChartDB, and its SVG export worker for both development
-and production. All services start without profiles. The default project name
+ChartDB, its SVG export worker, and Documenso with its own PostgreSQL database
+for both development and production. All services start without profiles. The default project name
 remains `abby-projects`, preserving the existing local database volume.
 
 The app image builds with Bun 1.3.14 and Node 24, then runs the compiled Nitro
@@ -17,8 +17,8 @@ are never Docker build arguments.
 Use a server with Docker Engine and Docker Compose. Your existing reverse
 proxy or hosting platform provides domains, HTTPS certificates, and public
 routing. Configure its routes as described below. PostgreSQL and the SVG
-worker have no published host ports. App and ChartDB expose container ports
-3000 and 80 to a container proxy without reserving host ports.
+worker have no published host ports. App, ChartDB, and Documenso expose container ports
+3000, 80, and 3000 respectively to a container proxy without reserving host ports.
 
 From the repository directory on the server:
 
@@ -30,8 +30,11 @@ chmod 600 .env.production
 Edit `.env.production` and set:
 
 - `NUXT_PUBLIC_CHARTDB_URL` to the browser-facing HTTPS URL of your ChartDB route.
-  `APP_PORT` and `CHARTDB_PORT` apply only with the optional host-port file below.
+  `APP_PORT`, `CHARTDB_PORT`, and `DOCUMENSO_PORT` apply only with the optional host-port file below.
 - `POSTGRES_PASSWORD` to a strong database password.
+- The `DOCUMENSO_*` settings from [the Documenso guide](documenso.md), including
+  its public URL, database password, independent secrets, SMTP, and signing
+  certificate. Existing deployments must add these settings before upgrading.
 - `NUXT_OWNER_EMAIL` and either `NUXT_OWNER_PASSWORD_HASH` or `NUXT_OWNER_PASSWORD`.
   The plain password must be non-empty and at most 1024 characters. To generate a scrypt hash
   without installing Bun on the server, use the command below.
@@ -84,10 +87,11 @@ docker compose --env-file .env.production logs --tail=100 app chartdb-export
 
 ## Updates and persistence
 
-SMTP delivery and DocuSign are configured from the app's settings; see
+The app's SMTP sender and Documenso API token are configured from its settings; see
 [sending devis](quote-email.md). Their saved credentials are encrypted using
-`NUXT_SESSION_PASSWORD`. Rotating that secret requires re-entering SMTP/DocuSign
-credentials and reconnecting DocuSign, in addition to signing everyone out.
+`NUXT_SESSION_PASSWORD`. Rotating that secret requires re-entering SMTP credentials
+and the Documenso API token, in addition to signing everyone out. Back up the
+separate Documenso database and its secrets as described in [its guide](documenso.md).
 
 Back up PostgreSQL before updating. Pull your code changes and rerun the same
 `up -d --build --wait --remove-orphans` command. Rebuilding includes new migrations
@@ -128,13 +132,15 @@ PostgreSQL and is included in the database backup.
 ## Reverse proxy routing
 
 For Coolify, use `docker-compose.yaml` alone, assign the app domain to container
-port 3000 and the ChartDB domain to container port 80, and set
+port 3000, the ChartDB domain to container port 80, and the Documenso signing
+domain to its container port 3000. Set `DOCUMENSO_PUBLIC_URL` to the signing
+origin and complete [Documenso onboarding](documenso.md). Set
 `NUXT_PUBLIC_CHARTDB_URL` to that ChartDB HTTPS URL. Remove any platform-configured
 host port mappings for these services before redeploying. Fixed host ports can
 conflict with other services or an earlier deployment still running.
 
 The default network declares explicit aliases for `postgres`, `chartdb`, and
-`chartdb-export` so internal URLs keep working when the platform renames services.
+`chartdb-export`, `documenso`, and `documenso-postgres` so internal URLs keep working when the platform renames services.
 If the owner seed reports `ENOTFOUND`, `EAI_AGAIN`, or `ESERVFAIL`, check the database hostname in the logs
 and verify that the app and PostgreSQL share this network in Coolify's generated
 Compose configuration. Explicit `NUXT_DATABASE_URL` or `DATABASE_URL` values take
@@ -165,15 +171,16 @@ docker compose -f docker-compose.yaml -f docker-compose.host.yaml --env-file .en
 ```
 
 Include both files in subsequent Compose commands for this installation. Set
-`APP_PORT` and `CHARTDB_PORT` if ports 3000 or 8080 are already occupied.
+`APP_PORT`, `CHARTDB_PORT`, and `DOCUMENSO_PORT` if ports 3000, 8080, or 8082
+are already occupied.
 Route the app domain to
-`http://127.0.0.1:3000` and the ChartDB domain to `http://127.0.0.1:8080` (or your
+`http://127.0.0.1:3000` and the ChartDB domain to `http://127.0.0.1:8080` and Documenso to `http://127.0.0.1:8082` (or your
 configured host ports). For a proxy running in Docker, attach it to the
-`abby-projects_default` network and use `http://app:3000` and
-`http://chartdb:80` as upstreams. Hosting platforms that attach services to their
+`abby-projects_default` network and use `http://app:3000`,
+`http://chartdb:80`, and `http://documenso:3000` as upstreams. Hosting platforms that attach services to their
 own proxy network can route directly to those same container ports.
 
-To attach the two browser-facing services to a pre-existing proxy network, add
+To attach the three browser-facing services to a pre-existing proxy network, add
 the following network configuration to `docker-compose.yaml`, replacing
 `your-proxy-network` with its actual name:
 
@@ -182,6 +189,8 @@ services:
   app:
     networks: [default, proxy]
   chartdb:
+    networks: [default, proxy]
+  documenso:
     networks: [default, proxy]
 
 networks:

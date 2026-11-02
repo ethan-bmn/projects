@@ -19,11 +19,11 @@ const historyError = ref('')
 const recipients = computed(() => [...new Set(props.client.emails.map(email => email.trim().toLowerCase()))])
 const signatureOptions = [
   { label: 'Sans demande de signature', value: 'none' },
-  { label: 'Créer une demande DocuSign', value: 'docusign' },
+  { label: 'Créer une demande Documenso', value: 'documenso' },
   { label: 'Inclure un lien de signature existant', value: 'link' }
 ]
 const statusLabels: Record<QuoteDelivery['status'], string> = { preparing: 'Préparation en cours', sending: 'Envoi en cours', sent: 'Accepté par le serveur SMTP', failed: 'Non envoyé', uncertain: 'Envoi à vérifier' }
-const signatureLabels: Record<QuoteDelivery['signatureStatus'], string> = { none: '', pending: 'Signature à envoyer', sending: 'Demande de signature en cours', sent: 'Invitation DocuSign envoyée', failed: 'Demande de signature échouée', uncertain: 'Demande de signature à vérifier dans DocuSign' }
+const signatureLabels: Record<QuoteDelivery['signatureStatus'], string> = { none: '', pending: 'Signature à envoyer', sending: 'Demande de signature en cours', sent: 'Invitation de signature envoyée', failed: 'Demande de signature échouée', uncertain: 'Demande de signature à vérifier auprès du service' }
 
 function invalidate() {
   preview.value = null
@@ -45,7 +45,7 @@ async function loadHistory() {
 onMounted(loadHistory)
 
 function options() {
-  return { to: to.value, docusign: signature.value === 'docusign', signatureLink: signature.value === 'link' ? signatureLink.value : '', signerName: signature.value === 'docusign' ? signerName.value : '' }
+  return { to: to.value, documenso: signature.value === 'documenso', signatureLink: signature.value === 'link' ? signatureLink.value : '', signerName: signature.value === 'documenso' ? signerName.value : '' }
 }
 
 function failure(cause: unknown) {
@@ -77,7 +77,7 @@ async function send() {
       method: 'POST', body: { ...options(), id: requestId.value, previewHash: preview.value.previewHash }
     })
     if (result.status === 'sent') {
-      message.value = result.signatureStatus === 'sent' ? 'E-mail accepté par SMTP et invitation DocuSign envoyée.' : 'E-mail accepté par le serveur SMTP.'
+      message.value = result.signatureStatus === 'sent' ? 'E-mail accepté par SMTP et invitation Documenso envoyée.' : 'E-mail accepté par le serveur SMTP.'
       if (result.error) error.value = result.error
     } else error.value = result.error || statusLabels[result.status]
   } catch (cause) {
@@ -95,7 +95,7 @@ async function retrySignature(item: QuoteDelivery) {
   message.value = ''
   try {
     const result = await $fetch<QuoteDelivery>(`${endpoint.value}/${item.id}/signature`, { method: 'POST' })
-    if (result.signatureStatus === 'sent') message.value = 'Invitation DocuSign envoyée. L’e-mail SMTP n’a pas été renvoyé.'
+    if (result.signatureStatus === 'sent') message.value = 'Invitation Documenso envoyée. L’e-mail SMTP n’a pas été renvoyé.'
     else error.value = result.error || signatureLabels[result.signatureStatus]
   } catch (cause) { error.value = failure(cause) } finally {
     await loadHistory()
@@ -161,16 +161,16 @@ async function retrySignature(item: QuoteDelivery) {
           />
         </UFormField>
         <p
-          v-if="signature === 'docusign'"
+          v-if="signature === 'documenso'"
           class="text-sm text-muted"
         >
-          DocuSign enverra une seconde invitation avec le lien de signature. Le client placera sa signature sur le PDF. Votre <NuxtLink
-            to="/settings#docusign"
+          Documenso enverra une seconde invitation avec le devis original et un feuillet de signature à compléter. Votre <NuxtLink
+            to="/settings#documenso"
             class="underline"
-          >compte DocuSign</NuxtLink> doit être connecté.
+          >clé API Documenso</NuxtLink> doit être configurée.
         </p>
         <UFormField
-          v-if="signature === 'docusign'"
+          v-if="signature === 'documenso'"
           label="Nom complet du signataire"
           name="quote-signer-name"
           description="Pour une entreprise, indiquez la personne qui signera le devis."
@@ -230,9 +230,9 @@ async function retrySignature(item: QuoteDelivery) {
             Répondre à
           </dt><dd>{{ preview.replyTo }}</dd>
         </div>
-        <div v-if="preview.docusign">
+        <div v-if="preview.documenso">
           <dt class="text-muted">
-            Signataire DocuSign
+            Signataire Documenso
           </dt><dd>{{ preview.signerName }}</dd>
         </div>
         <div>
@@ -333,11 +333,11 @@ async function retrySignature(item: QuoteDelivery) {
             v-if="item.envelopeId"
             class="text-muted"
           >
-            Enveloppe DocuSign : {{ item.envelopeId }}
+            Enveloppe {{ item.signatureProvider === 'docusign' ? 'DocuSign' : 'Documenso' }} : {{ item.envelopeId }}
           </p>
           <UButton
-            v-if="item.status === 'sent' && ['pending', 'failed'].includes(item.signatureStatus)"
-            label="Envoyer l’invitation DocuSign uniquement"
+            v-if="item.signatureProvider === 'documenso' && item.status === 'sent' && ['pending', 'failed'].includes(item.signatureStatus)"
+            label="Envoyer l’invitation Documenso uniquement"
             color="neutral"
             variant="outline"
             :disabled="pending"

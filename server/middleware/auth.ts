@@ -11,10 +11,7 @@ export default defineEventHandler(async (event) => {
 
   const isLogin = path === '/api/auth/login' && event.method === 'POST'
   const isSession = path === '/api/_auth/session' && ['GET', 'DELETE'].includes(event.method)
-  // OAuth returns cross-site: the callback validates its own expiring, single-use
-  // state and an HttpOnly SameSite=Lax cookie instead of the Strict session cookie.
-  const isDocusignCallback = path === '/api/docusign/callback' && event.method === 'GET'
-  if (isLogin || isSession || isDocusignCallback) return
+  if (isLogin || isSession) return
 
   await requireOwnerSession(event)
 })

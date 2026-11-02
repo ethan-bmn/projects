@@ -74,20 +74,20 @@ function sessionCookie(response: Response) {
 }
 
 describe('owner authentication', () => {
-  it('protects email and DocuSign settings and rejects callbacks without OAuth state', async () => {
-    for (const path of ['/api/settings/email', '/api/settings/docusign']) {
+  it('protects email and Documenso settings', async () => {
+    for (const path of ['/api/settings/email', '/api/settings/documenso']) {
       expect((await fetch(path)).status).toBe(401)
     }
-    expect((await fetch('/api/settings/docusign/connect', { method: 'POST' })).status).toBe(401)
-    const callback = await fetch('/api/docusign/callback?code=untrusted', { redirect: 'manual' })
-    expect(callback.status).toBe(302)
-    expect(callback.headers.get('location')).toBe('/settings?docusign=error#docusign')
+    expect((await fetch('/api/settings/documenso', { method: 'PUT' })).status).toBe(401)
     const cookie = sessionCookie(await login())
     const response = await fetch('/api/settings/email', { headers: { cookie } })
     expect(response.status).toBe(200)
     expect(response.headers.get('cache-control')).toBe('no-store')
     expect(await response.json()).toMatchObject({ configured: false, smtpPasswordConfigured: false })
-    expect((await fetch('/api/settings/docusign', { headers: { cookie } })).status).toBe(200)
+    expect((await fetch('/api/settings/documenso', { headers: { cookie } })).status).toBe(200)
+    expect((await fetch('/api/settings/documenso', {
+      method: 'PUT', headers: { cookie, 'Origin': 'https://other.example.test', 'Content-Type': 'application/json' }, body: '{}'
+    })).status).toBe(403)
     expect((await fetch('/api/settings/email', {
       method: 'PUT', headers: { cookie, 'Origin': 'https://other.example.test', 'Content-Type': 'application/json' }, body: '{}'
     })).status).toBe(403)

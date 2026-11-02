@@ -162,7 +162,7 @@ function saveAccount() {
         </section>
 
         <MailSettingsForm />
-        <DocusignSettingsForm />
+        <DocumensoSettingsForm />
 
         <section
           id="account"

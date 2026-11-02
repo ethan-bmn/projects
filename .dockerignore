@@ -11,3 +11,7 @@ node_modules
 .codex
 logs
 *.log
+*.p12
+*.pfx
+private.key
+certificate.crt

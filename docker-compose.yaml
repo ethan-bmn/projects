@@ -22,6 +22,8 @@ services:
       NUXT_ABBY_API_BASE_URL: ${NUXT_ABBY_API_BASE_URL:-https://api.app-abby.com}
       NUXT_CHARTDB_EXPORT_URL: http://chartdb-export:8081
       NUXT_PUBLIC_CHARTDB_URL: ${NUXT_PUBLIC_CHARTDB_URL:?Set the public HTTPS ChartDB URL in .env.production}
+      NUXT_DOCUMENSO_URL: http://documenso:3000
+      NUXT_PUBLIC_DOCUMENSO_URL: ${DOCUMENSO_PUBLIC_URL:?Set the public HTTPS Documenso URL in .env.production}
     expose:
       - "3000"
     depends_on:
@@ -52,6 +54,71 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+
+  documenso-postgres:
+    networks:
+      default:
+        aliases:
+          - documenso-postgres
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: documenso
+      POSTGRES_USER: documenso
+      POSTGRES_PASSWORD: ${DOCUMENSO_POSTGRES_PASSWORD:?Set DOCUMENSO_POSTGRES_PASSWORD}
+    volumes:
+      - documenso_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U documenso -d documenso"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  documenso:
+    networks:
+      default:
+        aliases:
+          - documenso
+    build:
+      context: .
+      dockerfile: docker/documenso/Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      PORT: "3000"
+      POSTGRES_DB: documenso
+      POSTGRES_USER: documenso
+      POSTGRES_PASSWORD: ${DOCUMENSO_POSTGRES_PASSWORD:?Set DOCUMENSO_POSTGRES_PASSWORD}
+      NEXTAUTH_SECRET: ${DOCUMENSO_AUTH_SECRET:?Set DOCUMENSO_AUTH_SECRET}
+      NEXT_PRIVATE_ENCRYPTION_KEY: ${DOCUMENSO_ENCRYPTION_KEY:?Set DOCUMENSO_ENCRYPTION_KEY}
+      NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY: ${DOCUMENSO_ENCRYPTION_SECONDARY_KEY:?Set DOCUMENSO_ENCRYPTION_SECONDARY_KEY}
+      NEXT_PUBLIC_WEBAPP_URL: ${DOCUMENSO_PUBLIC_URL:?Set DOCUMENSO_PUBLIC_URL}
+      NEXT_PRIVATE_INTERNAL_WEBAPP_URL: http://localhost:3000
+      NEXT_PUBLIC_UPLOAD_TRANSPORT: database
+      NEXT_PUBLIC_DISABLE_SIGNUP: ${DOCUMENSO_DISABLE_SIGNUP:-true}
+      NEXT_PRIVATE_SMTP_TRANSPORT: smtp-auth
+      NEXT_PRIVATE_SMTP_HOST: ${DOCUMENSO_SMTP_HOST:?Set DOCUMENSO_SMTP_HOST}
+      NEXT_PRIVATE_SMTP_PORT: ${DOCUMENSO_SMTP_PORT:-587}
+      NEXT_PRIVATE_SMTP_USERNAME: ${DOCUMENSO_SMTP_USERNAME:-}
+      NEXT_PRIVATE_SMTP_PASSWORD: ${DOCUMENSO_SMTP_PASSWORD:-}
+      NEXT_PRIVATE_SMTP_SECURE: ${DOCUMENSO_SMTP_SECURE:-false}
+      NEXT_PRIVATE_SMTP_FROM_NAME: ${DOCUMENSO_SMTP_FROM_NAME:-Abby Projects}
+      NEXT_PRIVATE_SMTP_FROM_ADDRESS: ${DOCUMENSO_SMTP_FROM_ADDRESS:?Set DOCUMENSO_SMTP_FROM_ADDRESS}
+      NEXT_PRIVATE_SIGNING_TRANSPORT: local
+      NEXT_PRIVATE_SIGNING_LOCAL_FILE_CONTENTS: ${DOCUMENSO_SIGNING_CERTIFICATE:?Set DOCUMENSO_SIGNING_CERTIFICATE to your base64 P12 certificate}
+      NEXT_PRIVATE_SIGNING_PASSPHRASE: ${DOCUMENSO_SIGNING_PASSPHRASE:?Set DOCUMENSO_SIGNING_PASSPHRASE}
+    expose:
+      - "3000"
+    depends_on:
+      documenso-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(async r => process.exit(r.ok && (await r.json()).status === 'ok' ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 
   chartdb:
     networks:
@@ -101,3 +168,4 @@ networks:
 
 volumes:
   postgres_data:
+  documenso_postgres_data:

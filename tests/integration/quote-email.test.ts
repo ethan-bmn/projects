@@ -7,6 +7,7 @@ import { getMailSettings, saveMailSettings } from '../../server/services/mail-se
 import { decryptSetting } from '../../server/services/settings-secrets'
 import { getQuoteDeliveries, previewQuoteEmail, quoteEmailDependencies, requestDeliverySignature, sendQuoteEmail } from '../../server/services/quote-email'
 import { SettingsError } from '../../server/services/settings'
+import { saveDocumensoSettings } from '../../server/services/documenso'
 import { createTestDatabase } from '../helpers/database'
 import { mailSettingsInput, settingsSecret } from '../helpers/email'
 
@@ -16,7 +17,7 @@ const database = await createTestDatabase()
 afterAll(database.cleanup)
 const sql = database.sql
 const abby = { baseUrl: 'https://api.app-abby.com', apiKey: 'fixture' }
-const options = { to: 'client@example.test', docusign: false, signatureLink: '' }
+const options = { to: 'client@example.test', documenso: false, signatureLink: '' }
 let clientId: string
 let projectId: string
 const transport = { verify: vi.fn(), sendMail: vi.fn(), close: vi.fn() }
@@ -35,7 +36,7 @@ beforeEach(async () => {
   const [project] = await sql`INSERT INTO projects (client_id, name, quote_id) VALUES (${clientId}, 'Refonte du site', 'quote-1') RETURNING id`
   projectId = project!.id
   await saveMailSettings(sql, mailSettingsInput, settingsSecret)
-  await sql`UPDATE docusign_settings SET refresh_token = 'connected-fixture', account_id = 'account-fixture' WHERE id = 1`
+  await saveDocumensoSettings(sql, { apiToken: 'api_test' }, settingsSecret)
   vi.mocked(fetchAbbyQuote).mockResolvedValue({ id: 'quote-1', number: 'D-001', title: 'Site web', state: 'finalized', amountWithTax: 120000, currencyCode: 'EUR' })
   transport.verify.mockResolvedValue(true)
   transport.sendMail.mockResolvedValue({ accepted: ['client@example.test'], rejected: [] })
@@ -129,8 +130,8 @@ describe('quote delivery', () => {
   })
 
   it('retries a rejected signature invitation without sending the SMTP email again', async () => {
-    const input = await prepared({ docusign: true })
-    dependencies.sendEnvelope.mockRejectedValueOnce(new SettingsError('Reconnectez votre compte DocuSign.', 502))
+    const input = await prepared({ documenso: true })
+    dependencies.sendEnvelope.mockRejectedValueOnce(new SettingsError('Reconnectez votre compte Documenso.', 502))
     const first = await sendQuoteEmail(sql, clientId, projectId, abby, input, settingsSecret, dependencies)
     expect(first).toMatchObject({ status: 'sent', signatureStatus: 'failed' })
     const second = await requestDeliverySignature(sql, clientId, projectId, first.id, settingsSecret, dependencies)
@@ -142,15 +143,36 @@ describe('quote delivery', () => {
 
   it('does not retry an unconfirmed signature request and recovers stale interrupted deliveries as uncertain', async () => {
     dependencies.sendEnvelope.mockRejectedValueOnce(new Error('socket timeout'))
-    const result = await sendQuoteEmail(sql, clientId, projectId, abby, await prepared({ docusign: true }), settingsSecret, dependencies)
+    const result = await sendQuoteEmail(sql, clientId, projectId, abby, await prepared({ documenso: true }), settingsSecret, dependencies)
     expect(result.signatureStatus).toBe('uncertain')
     await expect(requestDeliverySignature(sql, clientId, projectId, result.id, settingsSecret, dependencies)).rejects.toMatchObject({ statusCode: 409 })
     await sql`UPDATE quote_deliveries SET status = 'sending', updated_at = now() - interval '11 minutes' WHERE id = ${result.id}`
     expect((await getQuoteDeliveries(sql, clientId, projectId))[0]!.status).toBe('uncertain')
   })
 
+  it('reuses the persisted draft after a rejected invitation without resending SMTP', async () => {
+    dependencies.sendEnvelope.mockImplementationOnce(async (_sql, _secret, input) => {
+      await input.onCreated?.('envelope_draft')
+      throw new SettingsError('Documenso a refusé la requête.', 502)
+    })
+    const result = await sendQuoteEmail(sql, clientId, projectId, abby, await prepared({ documenso: true }), settingsSecret, dependencies)
+    expect(result).toMatchObject({ signatureStatus: 'failed', envelopeId: 'envelope_draft', signatureProvider: 'documenso' })
+    await requestDeliverySignature(sql, clientId, projectId, result.id, settingsSecret, dependencies)
+    expect(dependencies.sendEnvelope.mock.calls[1]![2].envelopeId).toBe('envelope_draft')
+    expect(transport.sendMail).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves DocuSign history and refuses to retry it through Documenso', async () => {
+    dependencies.sendEnvelope.mockRejectedValueOnce(new SettingsError('Rejected', 502))
+    const result = await sendQuoteEmail(sql, clientId, projectId, abby, await prepared({ documenso: true }), settingsSecret, dependencies)
+    await sql`UPDATE quote_deliveries SET signature_provider = 'docusign', envelope_id = 'old-envelope' WHERE id = ${result.id}`
+    expect((await getQuoteDeliveries(sql, clientId, projectId))[0]).toMatchObject({ signatureProvider: 'docusign', envelopeId: 'old-envelope' })
+    await expect(requestDeliverySignature(sql, clientId, projectId, result.id, settingsSecret, dependencies)).rejects.toMatchObject({ statusCode: 409 })
+    expect(dependencies.sendEnvelope).toHaveBeenCalledTimes(1)
+  })
+
   it('adds an optional existing signature link to the rendered message', async () => {
-    const preview = await previewQuoteEmail(sql, clientId, projectId, abby, { ...options, signatureLink: 'https://apps.docusign.com/sign/fixture' })
-    expect(preview.text).toContain('Signature électronique : https://apps.docusign.com/sign/fixture')
+    const preview = await previewQuoteEmail(sql, clientId, projectId, abby, { ...options, signatureLink: 'https://apps.documenso.com/sign/fixture' })
+    expect(preview.text).toContain('Signature électronique : https://apps.documenso.com/sign/fixture')
   })
 })

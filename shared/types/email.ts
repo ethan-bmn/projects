@@ -18,13 +18,9 @@ export interface EmailSettings {
   configured: boolean
 }
 
-export interface DocusignSettings {
-  environment: 'demo' | 'production'
-  integrationKey: string
-  secretConfigured: boolean
-  redirectUri: string
-  connected: boolean
-  accountName: string
+export interface DocumensoSettings {
+  url: string
+  configured: boolean
 }
 
 export interface QuoteEmailPreview {
@@ -35,7 +31,7 @@ export interface QuoteEmailPreview {
   filename: string
   from: string
   replyTo: string
-  docusign: boolean
+  documenso: boolean
   signerName: string
   previewHash: string
 }
@@ -49,5 +45,6 @@ export interface QuoteDelivery {
   status: 'preparing' | 'sending' | 'sent' | 'failed' | 'uncertain'
   signatureStatus: 'none' | 'pending' | 'sending' | 'sent' | 'failed' | 'uncertain'
   envelopeId: string | null
+  signatureProvider: 'docusign' | 'documenso' | null
   error: string | null
 }

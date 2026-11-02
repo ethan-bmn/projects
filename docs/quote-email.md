@@ -1,9 +1,10 @@
 # Sending devis from a project
 
 Deploy with `docker compose --env-file .env.production up -d --build --wait`.
-The app entrypoint applies the mail, DocuSign, and delivery-history migrations.
-No database port needs to be exposed. Configure the integrations in **Paramètres**;
-there are no SMTP or DocuSign credentials to add to `.env.production`.
+The app entrypoint applies pending migrations. The stack also starts Documenso
+and its own PostgreSQL database. Complete [Documenso deployment and account
+setup](documenso.md) first, including its SMTP settings and signing certificate.
+Configure the app's SMTP sender and Documenso API token in **Paramètres**.
 
 ## SMTP and message templates
 
@@ -36,8 +37,9 @@ For example, use `Votre devis ${QUOTE_NUMBER} pour ${PROJECT_NAME}` as the subje
 Variables are substituted as plain text once, never executed as code. Unknown
 or incomplete variables are rejected. The subject template allows 250 characters
 and no line breaks; the message template allows 10,000 characters. Rendered text
-is also bounded. DocuSign requires a rendered subject of at most 100 characters
-and a message of at most 10,000 characters.
+is also bounded. Documenso accepts an email subject of at most 254 characters
+and a message of at most 5,000 characters; the app's 250-character subject limit
+also applies.
 
 ## Sending the PDF
 
@@ -58,75 +60,66 @@ preview. With **Inclure un lien de signature existant**, paste an HTTPS link. It
 replaces `${SIGNATURE_LINK}` in the message, or is appended if the template does
 not include that variable. The app does not fetch this link.
 
-## Connecting DocuSign
+## Connecting Documenso
 
-Create a DocuSign integration configured for confidential Authorization Code
-Grant, with an integration key and secret. In **Paramètres → Signature DocuSign**:
+Open **Paramètres → Signature Documenso**, select **Ouvrir Documenso**, and create
+an API token in your team's settings. Save it in the app. No OAuth callback or
+external signing subscription is needed. A blank token preserves the saved value;
+**Supprimer la clé** removes the local credential. Revoke it separately in
+Documenso if needed.
 
-1. Select the matching development or production environment.
-2. Enter the integration key and secret.
-3. Enter your app's exact public URL followed by `/api/docusign/callback` and add
-   that exact URL to the integration's Redirect URIs in DocuSign. HTTPS is required,
-   except for local development on localhost/127.0.0.1.
-4. Save, then select **Connecter le compte** and authorize `signature extended`.
+Choose **Créer une demande Documenso** in the project and enter the human signer's
+full name. After SMTP accepts the quote email, the app uploads the original Abby
+PDF and a separate signature sheet into one Documenso envelope. The sheet records
+the delivery reference, quote filename, and SHA-256 of the original quote. Its
+signature field avoids covering content on the Abby PDF. Documenso sends a
+separate invitation using its configured SMTP sender and public signing domain.
+The recipient reviews the quote and signs the accompanying sheet.
 
-The app uses the default account returned by DocuSign's userinfo endpoint and
-refreshes access tokens automatically. A revoked or expired authorization requires
-reconnecting. Production requires a production-enabled integration and an account
-with the appropriate eSignature API access. Saving integration settings disconnects
-the current account; a blank secret input preserves the stored secret. Disconnecting
-removes local tokens; revoke the app separately in DocuSign if needed.
+The envelope ID appears in history. Use Documenso to view completion, download the
+signed documents and audit record, or cancel a request. Invitation status in the
+app records sending; completion is not synchronized back to Abby or the project.
 
-In the project, choose **Créer une demande DocuSign** and enter the human signer's
-full name (especially for business customers). After SMTP accepts the PDF email,
-the app creates and sends a DocuSign envelope with the same PDF and rendered
-subject/message. DocuSign sends a **separate email** containing its secure signing
-link. The app uses [free-form signing](https://www.docusign.com/blog/developers/common-api-tasks-let-your-signers-decide-where-to-place-the-tabs-you):
-the recipient places their own signature on the document. It does not add fixed
-signature fields to the Abby PDF. The envelope ID appears in the app's history;
-use DocuSign to inspect completion or void an invitation. Completion is not synced
-back to Abby or the project.
-
-See DocuSign's [Authorization Code Grant documentation](https://developers.docusign.com/platform/auth/confidential-authcode-get-token/)
-for integration setup and token behavior.
+Existing DocuSign invitations remain labeled DocuSign in history. They cannot be
+retried through Documenso; manage them in DocuSign. Changing provider does not
+transfer old envelopes, signatures, or credentials.
 
 ## History and failures
 
 Each send has a persisted unique request ID. Rechecking that request does not send
 the email again. History distinguishes SMTP acceptance from actual delivery; SMTP
 acceptance does not mean the message reached the inbox. It also tracks the separate
-DocuSign invitation. Sending is limited to five attempts per project per minute.
+Documenso invitation. Sending is limited to five attempts per project per minute.
 
-If SMTP succeeds but DocuSign rejects the request, fix the connection and select
-**Envoyer l’invitation DocuSign uniquement** in history. This retries the original
-PDF and notification without resending the SMTP email. An interrupted signature
-request is not retried automatically because DocuSign may already have accepted it.
+If SMTP succeeds but Documenso rejects the request, fix the connection and select
+**Envoyer l’invitation Documenso uniquement** in history. This retries the original
+PDF and notification without resending the SMTP email. If the draft was already
+created, its saved envelope ID is reused. An interrupted signature
+request is not retried automatically because Documenso may already have accepted it.
 
 Network timeouts or process crashes can leave an uncertain result. Check your mail
-provider and DocuSign before preparing a new send. Refresh history after an
+provider and Documenso before preparing a new send. Refresh history after an
 interrupted request; after ten minutes it marks stale in-progress work as requiring
 verification. **Préparer un nouvel envoi** creates a new request and can send a
 second email. Failures are not silently retried in the background.
 
-SMTP passwords, integration secrets, and DocuSign tokens are encrypted in PostgreSQL
+SMTP passwords and the Documenso API token are encrypted in PostgreSQL
 using a key derived from `NUXT_SESSION_PASSWORD`. Keep that secret stable and back
 it up separately from the database. If you rotate it, re-enter credentials and
-reconnect DocuSign. Settings responses never return saved passwords or tokens.
+save the Documenso token again. Settings responses never return saved passwords or tokens.
 Backups contain delivery recipients and message text. PDFs are retained only
 while needed for a pending, failed, or uncertain signature request and removed after a confirmed
 invitation; deleting a project removes its delivery records.
 
 ## Validation
 
-Integration tests use an isolated PostgreSQL database and mocked Abby, SMTP, and
-DocuSign services. They cover migration reruns, protected settings, OAuth state
-expiry/reuse, encrypted credentials, token refresh, PDF validation, duplicate-send
-prevention, stale previews, and signature retries without duplicate SMTP mail.
-Real SMTP delivery and DocuSign invitations require configuring your accounts;
-the test suite does not send customer emails or create live envelopes.
+Unit tests cover the multipart API contract, original PDF preservation, signature
+sheet, persisted-draft ordering, retries, ambiguous responses, and raw database
+credential encoding. Integration tests cover encrypted settings, migration reruns,
+legacy-provider history, and signature retries without duplicate SMTP mail.
+The tests mock remote signing and do not send customer email.
 
-Manual checks were performed against an isolated production container using
-fixture data: settings save, rendered email preview, simulated send/history,
-DocuSign signer preview, desktop (1280 px) and mobile (390 px), light and dark
-appearance. No horizontal overflow or uncaught browser errors were found.
-Outgoing email/signature requests were mocked for these browser checks.
+Before production use, verify the settings and quote-signing form on desktop and
+mobile in both themes, send to an address you control, complete signing, and
+inspect the signed files in Documenso. Live signing requires working SMTP and a
+valid certificate; mocked API tests do not verify those services.
