@@ -29,6 +29,7 @@ COPY --chown=node:node docker/entrypoint.sh ./docker/entrypoint.sh
 USER root
 RUN sed -i 's/\r$//' docker/entrypoint.sh
 USER node
+RUN node scripts/check-production.mjs
 EXPOSE 3000
 ENTRYPOINT ["node", "docker/entrypoint.mjs", "sh", "docker/entrypoint.sh"]
 CMD ["node", ".output/server/index.mjs"]

@@ -8,6 +8,10 @@ remains `abby-projects`, preserving the existing local database volume.
 The app image builds with Bun 1.3.14 and Node 24, then runs the compiled Nitro
 server as a non-root user. Database credentials are URL-encoded by the container
 entrypoint, so production does not need a manually constructed `DATABASE_URL`.
+The runtime image build starts an isolated copy of the production output and
+checks the session and login routes before accepting the image. This catches
+missing runtime dependencies without connecting to PostgreSQL. Run the same
+check locally with `bun run build` followed by `bun run check:production`.
 Owner credentials and the session secret are given to the app. The Abby key is
 stored in PostgreSQL; these secrets
 are never Docker build arguments.

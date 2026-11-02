@@ -37,6 +37,14 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2026-06-30',
 
+  nitro: {
+    externals: {
+      // The app and nuxt-auth-utils use different versions of these packages.
+      // Bundle both versions so traced output cannot mix their entrypoints.
+      inline: ['@adonisjs/hash', '@poppinss/utils']
+    }
+  },
+
   eslint: {
     config: {
       stylistic: {
