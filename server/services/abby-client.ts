@@ -182,6 +182,15 @@ export async function fetchAbbyClients(config: AbbyConfig, request: typeof fetch
           emails: [], commercialName: null, billingAddress: null
         })
       }
+      const business = businesses.get(organization.id)
+      if (!organization.archived && business) {
+        const emails = new Map<string, string>()
+        for (const address of [...business.emails, ...item.emails]) {
+          const email = address.trim()
+          if (email && !emails.has(email.toLowerCase())) emails.set(email.toLowerCase(), email)
+        }
+        business.emails = [...emails.values()]
+      }
     } else {
       let address = item.billingAddress
       if (item.needsAddressDetail) {

@@ -89,12 +89,10 @@ const updatedAt = computed(() => data.value ? new Intl.DateTimeFormat('fr-FR', {
             :to="`/clients/${clientId}`"
             class="mt-2 block text-muted underline-offset-4 hover:underline"
           >{{ data.client.name }}</NuxtLink>
-          <a
-            v-for="email in data.client.emails"
-            :key="email"
-            :href="`mailto:${email}`"
-            class="mt-1 block text-muted underline-offset-4 wrap-anywhere hover:underline"
-          >{{ email }}</a>
+          <ClientEmails
+            :emails="data.client.emails"
+            class="mt-1"
+          />
         </div>
         <div>
           <h2 class="font-medium text-highlighted">

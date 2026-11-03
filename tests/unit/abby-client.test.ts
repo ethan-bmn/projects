@@ -120,15 +120,31 @@ describe('Abby segmented client API', () => {
     ])
   })
 
-  it('uses embedded organization information if an active organization is absent from the list', async () => {
+  it('keeps organization and linked contact emails without blanks or case-insensitive duplicates', async () => {
+    const request = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(page([item, { id: 'other-org', name: 'Other company', emails: ['other@example.test'] }]))
+      .mockResolvedValueOnce(page([
+        { id: 'employee-1', fullname: 'Jean', emails: [' INFO@example.test ', ' jean@example.test ', ''], organization: { id: item.id, name: item.name } },
+        { id: 'employee-2', fullname: 'Marie', emails: ['marie@example.test', 'JEAN@example.test', ' '], organization: { id: item.id, name: item.name } },
+        { id: 'archived-employee', fullname: 'Former contact', emails: ['archived@example.test'], organization: { id: item.id, name: item.name, archivedAt: 1234567890 } },
+        { id: 'person', fullname: 'Standalone', emails: ['person@example.test'] }
+      ]))
+    const clients = await fetchAbbyClients(config, request)
+    expect(clients).toHaveLength(3)
+    expect(clients[0]!.emails).toEqual(['info@example.test', 'jean@example.test', 'marie@example.test'])
+    expect(clients[1]!.emails).toEqual(['other@example.test'])
+    expect(clients[2]!.emails).toEqual(['person@example.test'])
+  })
+
+  it('uses embedded organization information and contact emails if an active organization is absent from the list', async () => {
     const request = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(page([]))
       .mockResolvedValueOnce(page([
-        { id: 'employee-1', fullname: 'Jean', organization: { id: 'org-missing', name: 'Embedded company' } },
-        { id: 'employee-2', fullname: 'Marie', organization: { id: 'org-missing', name: 'Embedded company' } }
+        { id: 'employee-1', fullname: 'Jean', emails: ['jean@example.test'], organization: { id: 'org-missing', name: 'Embedded company' } },
+        { id: 'employee-2', fullname: 'Marie', emails: ['marie@example.test'], organization: { id: 'org-missing', name: 'Embedded company' } }
       ]))
     expect(await fetchAbbyClients(config, request)).toEqual([
-      { id: 'org-missing', kind: 'organization', name: 'Embedded company', emails: [], commercialName: null, billingAddress: null }
+      { id: 'org-missing', kind: 'organization', name: 'Embedded company', emails: ['jean@example.test', 'marie@example.test'], commercialName: null, billingAddress: null }
     ])
   })
 

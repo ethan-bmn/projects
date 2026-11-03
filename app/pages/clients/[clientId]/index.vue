@@ -22,13 +22,17 @@ function formatDate(value: string) {
       class="text-sm text-muted underline-offset-4 hover:underline"
     >Retour aux clients</NuxtLink>
     <div class="mt-5 flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-semibold tracking-tight text-highlighted">
+      <div class="min-w-0">
+        <h1 class="text-2xl font-semibold tracking-tight text-highlighted wrap-anywhere">
           {{ data.client.name }}
         </h1>
-        <p class="mt-2 text-sm text-muted wrap-anywhere">
-          {{ data.client.kind === 'organization' ? 'Entreprise' : 'Particulier' }} · {{ data.client.emails.join(', ') || 'Aucune adresse e-mail' }}
+        <p class="mt-2 text-sm text-muted">
+          {{ data.client.kind === 'organization' ? 'Entreprise' : 'Particulier' }}
         </p>
+        <ClientEmails
+          :emails="data.client.emails"
+          class="mt-2"
+        />
       </div>
       <UButton
         label="Nouveau projet"

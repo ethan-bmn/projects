@@ -136,7 +136,7 @@ async function synchronize() {
                 scope="col"
                 class="px-4 py-3 font-medium"
               >
-                Adresse e-mail
+                Adresses e-mail
               </th>
               <th
                 scope="col"
@@ -187,7 +187,7 @@ async function synchronize() {
                 :key="client.id"
                 class="border-b border-default transition-colors last:border-0 hover:bg-muted"
               >
-                <td class="px-4 py-3 font-medium text-highlighted">
+                <td class="px-4 py-3 align-top font-medium text-highlighted">
                   <NuxtLink
                     :to="`/clients/${client.id}`"
                     class="rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-primary"
@@ -201,10 +201,13 @@ async function synchronize() {
                     {{ client.commercialName }}
                   </p>
                 </td>
-                <td class="px-4 py-3 text-muted wrap-anywhere">
-                  {{ client.emails.join(', ') || '—' }}
+                <td class="px-4 py-3 align-top">
+                  <ClientEmails
+                    :emails="client.emails"
+                    empty-label="—"
+                  />
                 </td>
-                <td class="hidden px-4 py-3 text-muted sm:table-cell">
+                <td class="hidden px-4 py-3 align-top text-muted sm:table-cell">
                   {{ client.kind === 'organization' ? 'Entreprise' : 'Particulier' }}
                 </td>
               </tr>
